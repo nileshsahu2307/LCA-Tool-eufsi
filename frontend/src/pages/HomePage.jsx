@@ -2,12 +2,14 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { 
-  Factory, 
-  Footprints, 
-  Building2, 
-  Battery, 
-  History, 
+import {
+  Factory,
+  Footprints,
+  Building2,
+  Battery,
+  Apple,
+  Droplet,
+  History,
   ArrowRight,
   FileText,
   Database,
@@ -17,6 +19,7 @@ import {
   User
 } from "lucide-react";
 import axios from "axios";
+import baWearLogo from "@/assets/bawear-logo.png";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -27,6 +30,13 @@ const industries = [
     description: "Apparel, fabrics, and textile products",
     icon: Factory,
     image: "https://images.unsplash.com/photo-1684259499086-93cb3e555803?crop=entropy&cs=srgb&fm=jpg&q=85&w=800"
+  },
+  {
+    id: "bawear",
+    name: "Textile - BaWear",
+    description: "BaWear textile products and materials",
+    icon: Factory,
+    image: baWearLogo
   },
   {
     id: "footwear",
@@ -48,6 +58,20 @@ const industries = [
     description: "Battery systems and energy storage",
     icon: Battery,
     image: "https://images.unsplash.com/photo-1642721085288-3aa4dad43050?crop=entropy&cs=srgb&fm=jpg&q=85&w=800"
+  },
+  {
+    id: "food",
+    name: "Food",
+    description: "Food production and processing",
+    icon: Apple,
+    image: "https://images.unsplash.com/photo-1542838132-92c53300491e?crop=entropy&cs=srgb&fm=jpg&q=85&w=800"
+  },
+  {
+    id: "water",
+    name: "Water",
+    description: "Water treatment and distribution",
+    icon: Droplet,
+    image: "https://images.unsplash.com/photo-1559827260-dc66d52bef19?crop=entropy&cs=srgb&fm=jpg&q=85&w=800"
   }
 ];
 
