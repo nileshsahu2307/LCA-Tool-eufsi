@@ -33,8 +33,8 @@ const industries = [
   },
   {
     id: "bawear",
-    name: "Textile - BaWear",
-    description: "BaWear textile products and materials",
+    name: "Textile - bAwear",
+    description: "bAwear textile products and materials",
     icon: Factory,
     image: baWearLogo
   },
@@ -301,7 +301,7 @@ export default function HomePage() {
             />
           </div>
           <p className="text-sm text-slate-400">
-            © 2024 EUFSI • Life Cycle Assessment Tool
+            © {new Date().getFullYear()} EUFSI • Life Cycle Assessment Tool
           </p>
         </div>
       </footer>

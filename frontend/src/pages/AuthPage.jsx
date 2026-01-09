@@ -232,7 +232,7 @@ export default function AuthPage() {
 
       {/* Footer */}
       <footer className="py-6 px-6 text-center text-sm text-slate-500">
-        © 2024 EUFSI • Life Cycle Assessment Tool
+        © {new Date().getFullYear()} EUFSI • Life Cycle Assessment Tool
       </footer>
     </div>
   );

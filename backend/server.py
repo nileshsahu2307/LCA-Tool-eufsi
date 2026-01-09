@@ -2084,6 +2084,7 @@ BATTERY_SCHEMA = {
 
 INDUSTRY_SCHEMAS = {
     "textile": TEXTILE_SCHEMA,
+    "bawear": TEXTILE_SCHEMA,  # bAwear uses same structure as textile
     "footwear": FOOTWEAR_SCHEMA,
     "construction": CONSTRUCTION_SCHEMA,
     "battery": BATTERY_SCHEMA

@@ -567,7 +567,7 @@ export default function Results() {
       <footer className="py-6 px-6 bg-white border-t border-slate-200 mt-8">
         <div className="max-w-7xl mx-auto flex items-center justify-between text-sm text-slate-500">
           <span>EUFSI • Life Cycle Assessment</span>
-          <span>© 2024 EUFSI</span>
+          <span>© {new Date().getFullYear()} EUFSI</span>
         </div>
       </footer>
     </div>

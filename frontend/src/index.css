@@ -11,7 +11,7 @@ body {
         sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    background-color: #F8FAFC;
+    background-color: #0F172A;
 }
 
 code {
@@ -72,45 +72,45 @@ code {
 }
 
 ::-webkit-scrollbar-track {
-    background: #F1F5F9;
+    background: #1E293B;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #CBD5E1;
+    background: #475569;
     border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #94A3B8;
+    background: #64748B;
 }
 
 /* Shadcn overrides */
 @layer base {
     :root {
-        --background: 210 40% 98%;
-        --foreground: 222 47% 11%;
-        --card: 0 0% 100%;
-        --card-foreground: 222 47% 11%;
-        --popover: 0 0% 100%;
-        --popover-foreground: 222 47% 11%;
-        --primary: 217 91% 29%;
-        --primary-foreground: 0 0% 100%;
-        --secondary: 47 100% 54%;
-        --secondary-foreground: 217 91% 29%;
-        --muted: 210 40% 96%;
-        --muted-foreground: 215 16% 47%;
-        --accent: 210 40% 96%;
-        --accent-foreground: 222 47% 11%;
+        --background: 222 47% 11%;
+        --foreground: 210 40% 98%;
+        --card: 217 33% 17%;
+        --card-foreground: 210 40% 98%;
+        --popover: 217 33% 17%;
+        --popover-foreground: 210 40% 98%;
+        --primary: 217 91% 60%;
+        --primary-foreground: 222 47% 11%;
+        --secondary: 217 33% 23%;
+        --secondary-foreground: 210 40% 98%;
+        --muted: 217 33% 23%;
+        --muted-foreground: 215 20% 65%;
+        --accent: 217 33% 23%;
+        --accent-foreground: 210 40% 98%;
         --destructive: 0 84% 60%;
-        --destructive-foreground: 0 0% 98%;
-        --border: 214 32% 91%;
-        --input: 214 32% 91%;
-        --ring: 217 91% 29%;
-        --chart-1: 217 91% 29%;
-        --chart-2: 47 100% 54%;
-        --chart-3: 160 84% 39%;
-        --chart-4: 0 84% 60%;
-        --chart-5: 215 16% 47%;
+        --destructive-foreground: 210 40% 98%;
+        --border: 217 33% 23%;
+        --input: 217 33% 23%;
+        --ring: 217 91% 60%;
+        --chart-1: 217 91% 60%;
+        --chart-2: 142 71% 45%;
+        --chart-3: 47 96% 53%;
+        --chart-4: 280 67% 50%;
+        --chart-5: 0 84% 60%;
         --radius: 0.5rem;
     }
 }
