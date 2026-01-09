@@ -15,11 +15,11 @@ export function useTheme() {
     // Remove both classes
     root.classList.remove('light', 'dark');
 
-    // Add the current theme class
-    root.classList.add(theme);
+    // Add the current theme class (or default to light if none)
+    root.classList.add(theme || 'light');
 
     // Save to localStorage
-    localStorage.setItem('theme', theme);
+    localStorage.setItem('theme', theme || 'light');
   }, [theme]);
 
   const toggleTheme = () => {

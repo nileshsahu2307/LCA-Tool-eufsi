@@ -187,10 +187,10 @@ export default function HomePage() {
       {/* Hero Section */}
       <section className="py-16 px-6 blueprint-grid">
         <div className="max-w-7xl mx-auto text-center">
-          <h2 className="font-heading font-bold text-4xl sm:text-5xl text-slate-900 mb-4">
-            Multi-Industry <span className="text-eu-blue">Life Cycle Assessment</span>
+          <h2 className="font-heading font-bold text-4xl sm:text-5xl text-foreground mb-4">
+            Multi-Industry <span className="text-primary">Life Cycle Assessment</span>
           </h2>
-          <p className="text-lg text-slate-600 max-w-2xl mx-auto mb-8">
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
             Comprehensive environmental impact analysis with verified LCA calculations.
             Select an industry to begin your assessment.
           </p>
@@ -198,14 +198,14 @@ export default function HomePage() {
           {/* Features */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12 max-w-4xl mx-auto">
             {features.map((feature, index) => (
-              <div 
+              <div
                 key={index}
-                className="bg-white/80 backdrop-blur rounded-lg p-4 border border-slate-200 animate-fadeIn"
+                className="bg-card/80 backdrop-blur rounded-lg p-4 border border-border animate-fadeIn"
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
-                <feature.icon className="w-6 h-6 text-eu-blue mx-auto mb-2" />
-                <h3 className="font-heading font-semibold text-sm text-slate-900">{feature.title}</h3>
-                <p className="text-xs text-slate-500 mt-1">{feature.description}</p>
+                <feature.icon className="w-6 h-6 text-primary mx-auto mb-2" />
+                <h3 className="font-heading font-semibold text-sm text-card-foreground">{feature.title}</h3>
+                <p className="text-xs text-muted-foreground mt-1">{feature.description}</p>
               </div>
             ))}
           </div>
@@ -250,12 +250,12 @@ export default function HomePage() {
 
       {/* Recent Projects */}
       {recentProjects.length > 0 && (
-        <section className="py-12 px-6 bg-white border-t border-slate-200">
+        <section className="py-12 px-6 bg-card border-t border-border">
           <div className="max-w-7xl mx-auto">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h3 className="font-heading font-bold text-2xl text-slate-900">Recent Assessments</h3>
-                <p className="text-slate-600">Continue where you left off</p>
+                <h3 className="font-heading font-bold text-2xl text-foreground">Recent Assessments</h3>
+                <p className="text-muted-foreground">Continue where you left off</p>
               </div>
               <Link to="/history">
                 <Button variant="outline" className="gap-2">
@@ -279,8 +279,8 @@ export default function HomePage() {
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between mb-4">
                       <div>
-                        <h4 className="font-heading font-semibold text-slate-900">{project.name}</h4>
-                        <p className="text-sm text-slate-500 capitalize">{project.industry}</p>
+                        <h4 className="font-heading font-semibold text-card-foreground">{project.name}</h4>
+                        <p className="text-sm text-muted-foreground capitalize">{project.industry}</p>
                       </div>
                       <span className={`badge ${
                         project.status === 'completed' ? 'badge-success' :
@@ -290,7 +290,7 @@ export default function HomePage() {
                         {project.status}
                       </span>
                     </div>
-                    <div className="flex items-center gap-4 text-sm text-slate-500">
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       <span>{project.scope?.replace('-', ' → ')}</span>
                       <span>•</span>
                       <span>{project.method}</span>
