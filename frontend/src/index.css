@@ -36,6 +36,11 @@ code {
     background-size: 24px 24px;
 }
 
+.dark .blueprint-grid {
+    background-image: radial-gradient(rgba(71, 85, 105, 0.3) 1px, transparent 1px);
+    background-size: 24px 24px;
+}
+
 /* EU Colors */
 .bg-eu-blue {
     background-color: #004494;
@@ -128,28 +133,28 @@ code {
     .dark {
         --background: 222 47% 11%;
         --foreground: 210 40% 98%;
-        --card: 217 33% 17%;
+        --card: 217 33% 20%;
         --card-foreground: 210 40% 98%;
-        --popover: 217 33% 17%;
+        --popover: 217 33% 20%;
         --popover-foreground: 210 40% 98%;
-        --primary: 217 91% 60%;
+        --primary: 217 91% 65%;
         --primary-foreground: 222 47% 11%;
-        --secondary: 217 33% 23%;
+        --secondary: 217 33% 28%;
         --secondary-foreground: 210 40% 98%;
-        --muted: 217 33% 23%;
-        --muted-foreground: 215 20% 65%;
-        --accent: 217 33% 23%;
+        --muted: 217 33% 28%;
+        --muted-foreground: 215 20% 75%;
+        --accent: 217 33% 28%;
         --accent-foreground: 210 40% 98%;
         --destructive: 0 84% 60%;
         --destructive-foreground: 210 40% 98%;
-        --border: 217 33% 23%;
-        --input: 217 33% 23%;
-        --ring: 217 91% 60%;
-        --chart-1: 217 91% 60%;
-        --chart-2: 142 71% 45%;
-        --chart-3: 47 96% 53%;
-        --chart-4: 280 67% 50%;
-        --chart-5: 0 84% 60%;
+        --border: 217 33% 28%;
+        --input: 217 33% 28%;
+        --ring: 217 91% 65%;
+        --chart-1: 217 91% 65%;
+        --chart-2: 142 71% 50%;
+        --chart-3: 47 96% 58%;
+        --chart-4: 280 67% 55%;
+        --chart-5: 0 84% 65%;
     }
 }
 
