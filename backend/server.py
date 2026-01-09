@@ -2645,12 +2645,20 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize Brightway2 on startup"""
-    try:
-        bw_engine.initialize()
-        logger.info("Brightway2 engine initialized successfully")
-    except Exception as e:
-        logger.error(f"Failed to initialize Brightway2: {str(e)}")
+    """Initialize Brightway2 on startup (non-blocking)"""
+    import asyncio
+
+    async def init_brightway():
+        try:
+            logger.info("Starting Brightway2 initialization in background...")
+            await asyncio.to_thread(bw_engine.initialize)
+            logger.info("Brightway2 engine initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize Brightway2: {str(e)}")
+
+    # Run Brightway2 initialization in background
+    asyncio.create_task(init_brightway())
+    logger.info("API server started, Brightway2 initializing in background...")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
