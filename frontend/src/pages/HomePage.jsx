@@ -16,10 +16,13 @@ import {
   BarChart3,
   CheckCircle2,
   LogOut,
-  User
+  User,
+  Moon,
+  Sun
 } from "lucide-react";
 import axios from "axios";
 import baWearLogo from "@/assets/bawear-logo.png";
+import { useTheme } from "@/hooks/useTheme";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -100,6 +103,7 @@ const features = [
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const { theme, toggleTheme } = useTheme();
   const [recentProjects, setRecentProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
@@ -139,10 +143,10 @@ export default function HomePage() {
       <header className="app-header sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img 
-              src="/eufsi-logo.png" 
-              alt="EUFSI Logo" 
-              className="h-10 object-contain"
+            <img
+              src="/eufsi-logo.png"
+              alt="EUFSI Logo"
+              className="h-12 object-contain"
             />
           </div>
           <nav className="flex items-center gap-4">
@@ -152,15 +156,24 @@ export default function HomePage() {
                 <span>{user.name}</span>
               </div>
             )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleTheme}
+              className="gap-2"
+              title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+            >
+              {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+            </Button>
             <Link to="/history">
               <Button variant="ghost" className="gap-2" data-testid="history-btn">
                 <History className="w-4 h-4" />
                 History
               </Button>
             </Link>
-            <Button 
-              variant="ghost" 
-              className="gap-2 text-slate-500 hover:text-red-500" 
+            <Button
+              variant="ghost"
+              className="gap-2 text-slate-500 hover:text-red-500"
               onClick={handleLogout}
               data-testid="logout-btn"
             >
@@ -294,10 +307,10 @@ export default function HomePage() {
       <footer className="py-8 px-6 bg-slate-900 text-white">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <img 
-              src="/eufsi-logo.png" 
-              alt="EUFSI Logo" 
-              className="h-8 object-contain brightness-0 invert"
+            <img
+              src="/eufsi-logo.png"
+              alt="EUFSI Logo"
+              className="h-10 object-contain brightness-0 invert"
             />
           </div>
           <p className="text-sm text-slate-400">
