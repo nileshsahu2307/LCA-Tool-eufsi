@@ -15,7 +15,7 @@ services:
       - key: JWT_SECRET_KEY
         generateValue: true
       - key: CORS_ORIGINS
-        value: https://lca-eufsi-8bpi.onrender.com,https://lca-eufsi.onrender.com,http://localhost:3000
+        value: https://lca-eufsi-8bpi.onrender.com,https://lca-eufsi.onrender.com,http://localhost:3000,*
       - key: PORT
         value: 8000
     healthCheckPath: /health
@@ -30,7 +30,7 @@ services:
     dockerContext: ./frontend
     envVars:
       - key: REACT_APP_BACKEND_URL
-        value: https://lca-eufsi-api.onrender.com
+        value: https://lca-eufsi-api-uq83.onrender.com
       - key: PORT
         value: 3000
 
