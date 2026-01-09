@@ -1,0 +1,169 @@
+/* EUFSI LCA Tool Styles */
+
+.App {
+  min-height: 100vh;
+}
+
+/* Header styles */
+.app-header {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.5);
+}
+
+/* Industry card styles */
+.industry-card {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.industry-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
+  z-index: 1;
+}
+
+.industry-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+}
+
+.industry-card img {
+  transition: transform 0.5s ease;
+}
+
+.industry-card:hover img {
+  transform: scale(1.05);
+}
+
+/* Form wizard styles */
+.wizard-sidebar {
+  background: white;
+  border-right: 1px solid #E2E8F0;
+}
+
+.wizard-content {
+  background: #F8FAFC;
+}
+
+/* Step indicator */
+.step-indicator {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.step-indicator.active {
+  background: #004494;
+  color: white;
+}
+
+.step-indicator.completed {
+  background: #10B981;
+  color: white;
+}
+
+.step-indicator.inactive {
+  background: #E2E8F0;
+  color: #64748B;
+}
+
+/* Form section styles */
+.form-section {
+  background: white;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 16px;
+}
+
+.form-section-title {
+  font-family: 'Manrope', sans-serif;
+  font-weight: 600;
+  color: #004494;
+  margin-bottom: 16px;
+}
+
+/* Input with unit */
+.input-with-unit {
+  position: relative;
+}
+
+.input-with-unit input {
+  padding-right: 48px;
+}
+
+.input-unit {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #64748B;
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Results chart styles */
+.chart-container {
+  background: white;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  padding: 24px;
+}
+
+/* Loading overlay */
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.loading-spinner {
+  width: 48px;
+  height: 48px;
+  border: 3px solid #E2E8F0;
+  border-top-color: #004494;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .wizard-sidebar {
+    display: none;
+  }
+  
+  .form-section {
+    padding: 16px;
+  }
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  .print-break {
+    page-break-before: always;
+  }
+}

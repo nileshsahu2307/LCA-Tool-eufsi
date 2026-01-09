@@ -1,0 +1,39 @@
+services:
+  # Backend API Service
+  - type: web
+    name: lca-eufsi-api
+    runtime: docker
+    region: oregon
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    envVars:
+      - key: MONGO_URL
+        sync: false
+      - key: DB_NAME
+        value: lca_tool
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: https://lca-eufsi.onrender.com,http://localhost:3000
+      - key: PORT
+        value: 8000
+    healthCheckPath: /health
+
+  # Frontend Service
+  - type: web
+    name: lca-eufsi
+    runtime: docker
+    region: oregon
+    plan: free
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    envVars:
+      - key: REACT_APP_API_URL
+        value: https://lca-eufsi-api.onrender.com
+      - key: PORT
+        value: 3000
+
+# Database - Use MongoDB Atlas (external)
+# Free MongoDB Atlas: https://www.mongodb.com/cloud/atlas/register
+# Set MONGO_URL environment variable manually in Render dashboard
