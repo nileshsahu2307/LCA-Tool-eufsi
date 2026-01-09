@@ -29,7 +29,7 @@ services:
     dockerfilePath: ./frontend/Dockerfile
     dockerContext: ./frontend
     envVars:
-      - key: REACT_APP_API_URL
+      - key: REACT_APP_BACKEND_URL
         value: https://lca-eufsi-api.onrender.com
       - key: PORT
         value: 3000

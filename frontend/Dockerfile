@@ -16,6 +16,10 @@ RUN npm ci --only=production --ignore-scripts || npm install --force
 # Copy source code
 COPY . .
 
+# Accept build argument for API URL
+ARG REACT_APP_BACKEND_URL
+ENV REACT_APP_BACKEND_URL=$REACT_APP_BACKEND_URL
+
 # Build the production app
 RUN npm run build
 
