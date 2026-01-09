@@ -16,8 +16,8 @@ RUN npm ci --only=production --ignore-scripts || npm install --force
 # Copy source code
 COPY . .
 
-# Accept build argument for API URL
-ARG REACT_APP_BACKEND_URL
+# Accept build argument for API URL with default value
+ARG REACT_APP_BACKEND_URL=https://lca-eufsi-api.onrender.com
 ENV REACT_APP_BACKEND_URL=$REACT_APP_BACKEND_URL
 
 # Build the production app
