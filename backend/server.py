@@ -2268,69 +2268,190 @@ bw_engine = Brightway2Engine()
 
 TEXTILE_SCHEMA = {
     "industry": "textile",
-    "name": "Cotton T-Shirt Calculator",
-    "description": "Granular data entry interface to calculate the PEF-compliant Environmental Footprint of a textile product",
+    "name": "Comprehensive Textile LCA Calculator",
+    "description": "Granular cradle-to-gate data entry interface to calculate the PEF-compliant Environmental Footprint of textile products",
     "sections": [
         {
+            "id": "product_info",
+            "title": "Product Information",
+            "description": "Basic product details and specifications",
+            "fields": [
+                {"id": "product_id", "label": "Product ID / SKU", "type": "text", "required": True, "placeholder": "e.g., TS-001"},
+                {"id": "product_name", "label": "Product Name", "type": "text", "required": True, "placeholder": "e.g., Cotton T-Shirt"},
+                {"id": "product_category", "label": "Product Category", "type": "select", "required": True,
+                 "options": ["T-Shirt", "Shirt", "Polo", "Dress", "Jeans", "Trousers", "Jacket", "Sweater", "Underwear", "Socks", "Other"]},
+                {"id": "total_weight_grams", "label": "Total Product Weight", "type": "number", "unit": "grams", "required": True, "step": 1},
+                {"id": "description", "label": "Description", "type": "textarea", "required": False, "placeholder": "Additional product details"}
+            ]
+        },
+        {
             "id": "raw_materials",
-            "title": "Raw Materials (The Cradle)",
-            "description": "Define the fiber composition and origin intensity",
+            "title": "Raw Materials & Fiber Production",
+            "description": "Define the fiber composition, origin, and agricultural intensity",
             "repeatable": True,
-            "max_items": 5,
+            "max_items": 8,
             "fields": [
                 {"id": "fiber_type", "label": "Fiber Type", "type": "select", "required": True,
                  "options": [
-                     "Cotton (Conventional)", "Cotton (Organic)",
+                     "Cotton (Conventional)", "Cotton (Organic)", "Cotton (Recycled)",
                      "Polyester (Virgin)", "Polyester (Recycled)",
-                     "Wool", "Viscose", "Lyocell", "Modal",
-                     "Elastane", "Nylon", "Nylon (Recycled)",
-                     "Acrylic", "Linen", "Hemp", "Silk", "Bamboo"
+                     "Wool (Virgin)", "Wool (Recycled)",
+                     "Viscose", "Lyocell", "Modal",
+                     "Elastane", "Nylon (Virgin)", "Nylon (Recycled)",
+                     "Acrylic", "Linen", "Hemp", "Silk", "Bamboo", "Other"
                  ]},
-                {"id": "net_weight_kg", "label": "Net Weight", "type": "number", "unit": "kg", "required": True, "step": 0.001},
+                {"id": "percentage", "label": "Percentage in Product", "type": "number", "unit": "%", "required": True, "min": 0, "max": 100, "step": 0.1},
+                {"id": "weight_grams", "label": "Weight", "type": "number", "unit": "grams", "required": True, "step": 0.1},
                 {"id": "origin_country", "label": "Origin Country", "type": "select", "required": True,
-                 "options": ["India", "Turkey", "USA", "China", "Bangladesh", "Vietnam", "Pakistan", "Egypt", "Brazil", "Uzbekistan"]},
+                 "options": ["India", "Turkey", "USA", "China", "Bangladesh", "Vietnam", "Pakistan", "Egypt", "Brazil", "Uzbekistan", "Australia", "Europe", "Other"]},
                 {"id": "fertilizer_n_kg", "label": "Fertilizer N (kg/kg fiber)", "type": "number", "unit": "kg/kg", "required": False, "step": 0.001},
+                {"id": "pesticides_kg", "label": "Pesticides (kg/kg fiber)", "type": "number", "unit": "kg/kg", "required": False, "step": 0.001},
+                {"id": "irrigation_m3", "label": "Irrigation Water (m³/kg fiber)", "type": "number", "unit": "m³/kg", "required": False, "step": 0.01},
                 {"id": "yield_kg_ha", "label": "Yield (kg/ha)", "type": "number", "unit": "kg/ha", "required": False}
             ]
         },
         {
-            "id": "textile_processing",
-            "title": "Textile Processing (The Hotspots)",
-            "description": "Energy and chemical intensity during yarn and fabric creation",
+            "id": "yarn_production",
+            "title": "Yarn Production (Spinning)",
+            "description": "Spinning technology and energy consumption for yarn manufacturing",
             "fields": [
                 {"id": "spinning_technology", "label": "Spinning Technology", "type": "select", "required": True,
-                 "options": ["Ring Spinning", "Open End", "Air Jet"]},
-                {"id": "spinning_electricity_kwh", "label": "Spinning Electricity (kWh/kg)", "type": "number", "unit": "kWh/kg", "required": True, "step": 0.1},
+                 "options": ["Ring Spinning", "Open End", "Air Jet", "Vortex", "Multifilament", "Mixed"]},
+                {"id": "yarn_count_nm", "label": "Average Yarn Count", "type": "number", "unit": "Nm", "required": False, "step": 1},
+                {"id": "spinning_location", "label": "Spinning Location", "type": "select", "required": True,
+                 "options": ["India", "China", "Bangladesh", "Vietnam", "Turkey", "Pakistan", "Indonesia", "USA", "Europe", "Other"]},
+                {"id": "spinning_electricity_kwh", "label": "Spinning Electricity (kWh/kg)", "type": "number", "unit": "kWh/kg", "required": True, "step": 0.01},
+                {"id": "spinning_renewable_energy", "label": "Renewable Energy in Spinning", "type": "number", "unit": "%", "required": False, "min": 0, "max": 100, "step": 1}
+            ]
+        },
+        {
+            "id": "fabric_construction",
+            "title": "Fabric Construction",
+            "description": "Knitting or weaving process and energy consumption",
+            "fields": [
+                {"id": "construction_method", "label": "Construction Method", "type": "select", "required": True,
+                 "options": [
+                     "Knitting - Circular", "Knitting - Flatbed", "Knitting - Warp",
+                     "Weaving - Air jet", "Weaving - Water jet", "Weaving - Rapier",
+                     "Weaving - Projectile", "Non-woven", "Other"
+                 ]},
+                {"id": "construction_location", "label": "Fabric Construction Location", "type": "select", "required": True,
+                 "options": ["India", "China", "Bangladesh", "Vietnam", "Turkey", "Pakistan", "Indonesia", "USA", "Europe", "Other"]},
+                {"id": "construction_electricity_kwh", "label": "Construction Electricity (kWh/kg)", "type": "number", "unit": "kWh/kg", "required": True, "step": 0.01},
+                {"id": "construction_renewable_energy", "label": "Renewable Energy in Construction", "type": "number", "unit": "%", "required": False, "min": 0, "max": 100, "step": 1},
+                {"id": "fabric_waste_rate", "label": "Fabric Production Waste Rate", "type": "number", "unit": "%", "required": False, "min": 0, "max": 30, "step": 0.1}
+            ]
+        },
+        {
+            "id": "wet_processing",
+            "title": "Wet Processing (Dyeing, Printing, Finishing)",
+            "description": "Coloring, finishing, and chemical treatment processes",
+            "fields": [
                 {"id": "dyeing_process_type", "label": "Dyeing Process Type", "type": "select", "required": True,
-                 "options": ["Jet Dyeing", "Pad Batch", "Continuous", "No Dyeing"]},
-                {"id": "water_consumption_l", "label": "Water Consumption (L/kg)", "type": "number", "unit": "L/kg", "required": True},
-                {"id": "energy_consumption_mj", "label": "Energy Consumption (MJ/kg)", "type": "number", "unit": "MJ/kg", "required": True, "step": 0.1},
-                {"id": "onsite_etp", "label": "On-site ETP?", "type": "boolean", "required": True},
+                 "options": ["Jet Dyeing", "Pad Batch", "Pad-Steam", "Jigger", "Continuous", "Spun-dyed (Dope dyed)", "No Dyeing"]},
+                {"id": "color_depth", "label": "Color Depth", "type": "select", "required": True,
+                 "options": ["Pale/Light", "Medium", "Dark", "Very Dark", "No Color"]},
+                {"id": "printing_method", "label": "Printing Method", "type": "select", "required": False,
+                 "options": ["None", "Screen Printing", "Digital Printing", "Transfer Printing", "Rotary Printing"]},
+                {"id": "finishing_method", "label": "Finishing Method", "type": "select", "required": True,
+                 "options": [
+                     "None", "Continuous - natural fibers", "Continuous - synthetic fibers",
+                     "Semi-continuous - natural fibers", "Semi-continuous - synthetic fibers",
+                     "Batch - natural fibers", "Batch - synthetic fibers"
+                 ]},
+                {"id": "finishing_location", "label": "Wet Processing Location", "type": "select", "required": True,
+                 "options": ["India", "China", "Bangladesh", "Vietnam", "Turkey", "Pakistan", "Indonesia", "USA", "Europe", "Other"]},
+                {"id": "water_consumption_l", "label": "Water Consumption (L/kg)", "type": "number", "unit": "L/kg", "required": True, "step": 0.1},
+                {"id": "thermal_energy_mj", "label": "Thermal Energy (MJ/kg)", "type": "number", "unit": "MJ/kg", "required": True, "step": 0.1},
+                {"id": "electricity_kwh", "label": "Electricity (kWh/kg)", "type": "number", "unit": "kWh/kg", "required": True, "step": 0.01},
+                {"id": "wet_renewable_energy", "label": "Renewable Energy in Wet Processing", "type": "number", "unit": "%", "required": False, "min": 0, "max": 100, "step": 1},
+                {"id": "chemicals_kg", "label": "Chemical Usage (kg/kg fabric)", "type": "number", "unit": "kg/kg", "required": False, "step": 0.001},
+                {"id": "onsite_etp", "label": "On-site ETP (Effluent Treatment Plant)?", "type": "boolean", "required": True},
                 {"id": "zero_liquid_discharge", "label": "Zero Liquid Discharge (ZLD)?", "type": "boolean", "required": True}
             ]
         },
         {
-            "id": "confection",
-            "title": "Confection (Assembly)",
-            "description": "Cutting, sewing, and packaging",
+            "id": "manufacturing",
+            "title": "Cut, Make & Trim (CMT)",
+            "description": "Garment manufacturing - cutting, sewing, finishing, and accessories",
             "fields": [
-                {"id": "factory_location", "label": "Factory Location", "type": "select", "required": True,
-                 "options": ["Bangladesh", "China", "India", "Vietnam", "Turkey", "Indonesia", "Pakistan", "Cambodia", "Sri Lanka", "Ethiopia"]},
-                {"id": "fabric_waste_rate", "label": "Fabric Waste Rate (%)", "type": "number", "unit": "%", "required": True, "min": 0, "max": 50},
-                {"id": "packaging_weight_kg", "label": "Packaging Weight (kg)", "type": "number", "unit": "kg", "required": True, "step": 0.001}
+                {"id": "factory_location", "label": "Manufacturing Location", "type": "select", "required": True,
+                 "options": ["Bangladesh", "China", "India", "Vietnam", "Turkey", "Indonesia", "Pakistan", "Cambodia", "Sri Lanka", "Ethiopia", "USA", "Europe", "Other"]},
+                {"id": "cutting_waste_rate", "label": "Cutting Waste Rate", "type": "number", "unit": "%", "required": True, "min": 0, "max": 50, "step": 0.1},
+                {"id": "sewing_electricity_kwh", "label": "Sewing Electricity (kWh/piece)", "type": "number", "unit": "kWh/piece", "required": False, "step": 0.001},
+                {"id": "manufacturing_renewable_energy", "label": "Renewable Energy in Manufacturing", "type": "number", "unit": "%", "required": False, "min": 0, "max": 100, "step": 1},
+                {"id": "accessories_weight_g", "label": "Accessories Weight (buttons, zippers, etc.)", "type": "number", "unit": "grams", "required": False, "step": 0.1},
+                {"id": "thread_weight_g", "label": "Thread Weight", "type": "number", "unit": "grams", "required": False, "step": 0.1},
+                {"id": "finish_treatment_1", "label": "Finish Treatment 1", "type": "select", "required": False,
+                 "options": ["None", "Embroidery", "Stone wash", "Enzyme wash", "Laser finishing", "Ozone treatment", "Garment dyeing", "Transfer print", "Other"]},
+                {"id": "finish_treatment_2", "label": "Finish Treatment 2", "type": "select", "required": False,
+                 "options": ["None", "Embroidery", "Stone wash", "Enzyme wash", "Laser finishing", "Ozone treatment", "Garment dyeing", "Transfer print", "Other"]}
+            ]
+        },
+        {
+            "id": "packaging",
+            "title": "Packaging",
+            "description": "Primary and secondary packaging materials",
+            "fields": [
+                {"id": "primary_packaging_type", "label": "Primary Packaging Type", "type": "select", "required": True,
+                 "options": ["Polybag (LDPE)", "Polybag (Recycled PE)", "Paper bag", "No primary packaging", "Other"]},
+                {"id": "primary_packaging_weight_g", "label": "Primary Packaging Weight", "type": "number", "unit": "grams", "required": True, "step": 0.1},
+                {"id": "secondary_packaging_type", "label": "Secondary Packaging Type", "type": "select", "required": False,
+                 "options": ["None", "Cardboard box", "Paper wrap", "Plastic wrap", "Other"]},
+                {"id": "secondary_packaging_weight_g", "label": "Secondary Packaging Weight", "type": "number", "unit": "grams", "required": False, "step": 0.1},
+                {"id": "hangtag_weight_g", "label": "Hangtag/Label Weight", "type": "number", "unit": "grams", "required": False, "step": 0.1}
+            ]
+        },
+        {
+            "id": "waste_management",
+            "title": "Manufacturing Waste Management",
+            "description": "Destination of fabric and cutting waste",
+            "fields": [
+                {"id": "waste_recycled", "label": "Waste Recycled", "type": "number", "unit": "%", "required": True, "min": 0, "max": 100, "step": 1},
+                {"id": "waste_incinerated", "label": "Waste Incinerated with Energy Recovery", "type": "number", "unit": "%", "required": True, "min": 0, "max": 100, "step": 1},
+                {"id": "waste_landfilled", "label": "Waste Landfilled", "type": "number", "unit": "%", "required": True, "min": 0, "max": 100, "step": 1}
             ]
         },
         {
             "id": "logistics",
-            "title": "Logistics",
+            "title": "Logistics & Transportation",
             "description": "Transportation legs between supply chain nodes",
             "repeatable": True,
-            "max_items": 3,
+            "max_items": 6,
             "fields": [
-                {"id": "leg_name", "label": "Leg Name", "type": "text", "required": True, "placeholder": "e.g., Material to Factory"},
-                {"id": "distance_km", "label": "Distance (km)", "type": "number", "unit": "km", "required": True},
+                {"id": "leg_name", "label": "Leg Name", "type": "text", "required": True, "placeholder": "e.g., Fiber to Spinning"},
+                {"id": "distance_km", "label": "Distance (km)", "type": "number", "unit": "km", "required": True, "step": 1},
                 {"id": "transport_mode", "label": "Transport Mode", "type": "select", "required": True,
-                 "options": ["Truck (Diesel)", "Truck (Electric)", "Sea Freight (Container)", "Air Freight", "Rail", "Van (Electric)", "Van (Diesel)"]}
+                 "options": ["Truck (Diesel)", "Truck (Electric)", "Sea Freight (Container)", "Air Freight", "Rail", "Van (Electric)", "Van (Diesel)", "Barge", "Other"]}
+            ]
+        },
+        {
+            "id": "use_phase",
+            "title": "Use Phase (Optional)",
+            "description": "Consumer use phase - washing, drying, ironing",
+            "fields": [
+                {"id": "include_use_phase", "label": "Include Use Phase in Assessment?", "type": "boolean", "required": True},
+                {"id": "lifetime_washing_cycles", "label": "Lifetime Washing Cycles", "type": "number", "required": False, "step": 1},
+                {"id": "washing_temperature", "label": "Average Washing Temperature", "type": "number", "unit": "°C", "required": False, "step": 5},
+                {"id": "washing_machine_type", "label": "Washing Machine Type", "type": "select", "required": False,
+                 "options": ["Front-loading", "Top-loading", "Hand wash"]},
+                {"id": "drying_method", "label": "Drying Method", "type": "select", "required": False,
+                 "options": ["Line dry", "Tumble dry - low", "Tumble dry - medium", "Tumble dry - high"]},
+                {"id": "ironing", "label": "Ironing Required?", "type": "boolean", "required": False},
+                {"id": "ironing_minutes", "label": "Average Ironing Time per Cycle", "type": "number", "unit": "minutes", "required": False, "step": 1}
+            ]
+        },
+        {
+            "id": "end_of_life",
+            "title": "End of Life (Optional)",
+            "description": "Product end-of-life scenario",
+            "fields": [
+                {"id": "include_end_of_life", "label": "Include End of Life in Assessment?", "type": "boolean", "required": True},
+                {"id": "reuse_percentage", "label": "Reuse / Second-hand", "type": "number", "unit": "%", "required": False, "min": 0, "max": 100, "step": 1},
+                {"id": "recycled_percentage", "label": "Recycled (textile-to-textile)", "type": "number", "unit": "%", "required": False, "min": 0, "max": 100, "step": 1},
+                {"id": "downcycled_percentage", "label": "Downcycled (rags, insulation)", "type": "number", "unit": "%", "required": False, "min": 0, "max": 100, "step": 1},
+                {"id": "incinerated_percentage", "label": "Incinerated with Energy Recovery", "type": "number", "unit": "%", "required": False, "min": 0, "max": 100, "step": 1},
+                {"id": "landfill_percentage", "label": "Landfilled", "type": "number", "unit": "%", "required": False, "min": 0, "max": 100, "step": 1}
             ]
         }
     ]
