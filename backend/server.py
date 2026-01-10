@@ -2285,9 +2285,9 @@ TEXTILE_SCHEMA = {
             ]
         },
         {
-            "id": "raw_materials",
-            "title": "Raw Materials & Fiber Production",
-            "description": "Define the fiber composition, origin, and agricultural intensity",
+            "id": "fiber_composition",
+            "title": "Fiber Composition",
+            "description": "Define the fiber blend and percentages",
             "repeatable": True,
             "max_items": 8,
             "fields": [
@@ -2303,11 +2303,7 @@ TEXTILE_SCHEMA = {
                 {"id": "percentage", "label": "Percentage in Product", "type": "number", "unit": "%", "required": True, "min": 0, "max": 100, "step": 0.1},
                 {"id": "weight_grams", "label": "Weight", "type": "number", "unit": "grams", "required": True, "step": 0.1},
                 {"id": "origin_country", "label": "Origin Country", "type": "select", "required": True,
-                 "options": ["India", "Turkey", "USA", "China", "Bangladesh", "Vietnam", "Pakistan", "Egypt", "Brazil", "Uzbekistan", "Australia", "Europe", "Other"]},
-                {"id": "fertilizer_n_kg", "label": "Fertilizer N (kg/kg fiber)", "type": "number", "unit": "kg/kg", "required": False, "step": 0.001},
-                {"id": "pesticides_kg", "label": "Pesticides (kg/kg fiber)", "type": "number", "unit": "kg/kg", "required": False, "step": 0.001},
-                {"id": "irrigation_m3", "label": "Irrigation Water (m³/kg fiber)", "type": "number", "unit": "m³/kg", "required": False, "step": 0.01},
-                {"id": "yield_kg_ha", "label": "Yield (kg/ha)", "type": "number", "unit": "kg/ha", "required": False}
+                 "options": ["India", "Turkey", "USA", "China", "Bangladesh", "Vietnam", "Pakistan", "Egypt", "Brazil", "Uzbekistan", "Australia", "Europe", "Other"]}
             ]
         },
         {
