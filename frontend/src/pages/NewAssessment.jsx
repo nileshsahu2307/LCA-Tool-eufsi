@@ -611,20 +611,20 @@ export default function NewAssessment() {
             <button
               key={step.id}
               onClick={() => setCurrentStep(index)}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
-                currentStep === index 
-                  ? "bg-primary/10 text-primary" 
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors ${
+                currentStep === index
+                  ? "bg-primary/10 text-primary"
                   : "text-muted-foreground hover:bg-accent"
               }`}
               data-testid={`step-${step.id}`}
             >
-              <div className={`step-indicator ${
-                currentStep === index ? "active" : 
+              <div className={`flex-shrink-0 step-indicator ${
+                currentStep === index ? "active" :
                 currentStep > index ? "completed" : "inactive"
               }`}>
                 {currentStep > index ? <CheckCircle2 className="w-4 h-4" /> : index + 1}
               </div>
-              <span className="text-sm font-medium truncate">{step.title}</span>
+              <span className="text-sm font-medium flex-1 leading-tight">{step.title}</span>
             </button>
           ))}
         </nav>
