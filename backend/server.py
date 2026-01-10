@@ -540,7 +540,151 @@ class Brightway2Engine:
         while "__" in code:
             code = code.replace("__", "_")
         return code.strip("_")
-        
+
+    def _get_emission_factor(self, activity_key: str, unit: str) -> float:
+        """
+        Get simplified CO2 emission factor for an activity.
+        These are rough estimates based on literature (Ecoinvent, bAwear, etc.)
+        Real database would have detailed LCIA characterization.
+
+        Returns: kg CO2 eq per functional unit
+        """
+        activity_lower = activity_key.lower()
+
+        # FIBER PRODUCTION (kg CO2 eq / kg fiber)
+        if 'cotton' in activity_lower:
+            if 'organic' in activity_lower:
+                return 1.8  # Organic cotton: lower emissions
+            return 5.9  # Conventional cotton: high due to irrigation, fertilizers
+
+        if 'polyester' in activity_lower:
+            if 'recycled' in activity_lower:
+                return 3.0  # Recycled polyester: much lower
+            return 9.5  # Virgin polyester: high fossil fuel use
+
+        if 'wool' in activity_lower:
+            return 22.0  # Wool: very high (methane from sheep)
+
+        if 'viscose' in activity_lower or 'rayon' in activity_lower:
+            return 11.0  # Viscose: chemical-intensive
+
+        if 'lyocell' in activity_lower:
+            return 4.5  # Lyocell: cleaner process than viscose
+
+        if 'modal' in activity_lower:
+            return 5.5
+
+        if 'elastane' in activity_lower or 'spandex' in activity_lower:
+            return 14.0  # Synthetic, petrochemical
+
+        if 'nylon' in activity_lower:
+            if 'recycled' in activity_lower:
+                return 4.5
+            return 12.0  # Nylon 6/6.6: high energy
+
+        if 'acrylic' in activity_lower:
+            return 13.0
+
+        if 'linen' in activity_lower or 'flax' in activity_lower:
+            return 2.1  # Natural fiber, lower impact
+
+        if 'hemp' in activity_lower:
+            return 1.7  # Very low impact
+
+        if 'silk' in activity_lower:
+            return 45.0  # Silk: extremely high
+
+        # YARN SPINNING (kg CO2 eq / kg yarn) - Energy consumption
+        if 'spinning' in activity_lower or 'yarn' in activity_lower:
+            if 'ring' in activity_lower:
+                return 0.8  # Ring spinning: ~5 kWh/kg * 0.16 kg CO2/kWh (China grid mix)
+            if 'open end' in activity_lower or 'open-end' in activity_lower:
+                return 0.5  # Open-end: more efficient
+            if 'air jet' in activity_lower or 'air-jet' in activity_lower:
+                return 0.6
+            if 'vortex' in activity_lower:
+                return 0.55
+            return 0.7  # Default spinning
+
+        # FABRIC CONSTRUCTION (kg CO2 eq / kg fabric)
+        if 'weaving' in activity_lower:
+            return 0.4  # ~2.5 kWh/kg
+
+        if 'knitting' in activity_lower:
+            return 0.35  # Slightly more efficient
+
+        if 'nonwoven' in activity_lower or 'non-woven' in activity_lower:
+            return 0.3
+
+        # DYEING & FINISHING (kg CO2 eq / kg fabric) - HIGH ENERGY + CHEMICALS
+        if 'dyeing' in activity_lower or 'dye' in activity_lower:
+            if 'jet' in activity_lower:
+                return 9.5  # Jet dyeing: very energy-intensive (steam, electricity)
+            if 'batch' in activity_lower or 'pad' in activity_lower:
+                return 8.0
+            if 'continuous' in activity_lower:
+                return 7.5  # More efficient
+            if 'spun dyed' in activity_lower or 'dope dyed' in activity_lower:
+                return 0.5  # Much lower - pigment in polymer stage
+            return 8.5  # Default dyeing
+
+        if 'printing' in activity_lower:
+            if 'digital' in activity_lower:
+                return 2.0  # Digital: lower water/energy
+            return 4.5  # Screen/transfer printing
+
+        if 'finishing' in activity_lower:
+            if 'chemical' in activity_lower:
+                return 3.5
+            if 'continuous' in activity_lower:
+                return 3.0
+            if 'batch' in activity_lower:
+                return 4.0
+            return 3.2  # Default finishing
+
+        # TRANSPORT (kg CO2 eq / tkm)
+        if 'truck' in activity_lower or 'lorry' in activity_lower:
+            return 0.062  # Diesel truck
+
+        if 'container ship' in activity_lower or 'sea' in activity_lower:
+            return 0.0035  # Sea freight: very efficient per tkm
+
+        if 'aircraft' in activity_lower:
+            return 0.602  # Air freight: very high
+
+        if 'train' in activity_lower or 'rail' in activity_lower:
+            return 0.022  # Rail: efficient
+
+        # END OF LIFE (kg CO2 eq / kg waste)
+        if 'incineration' in activity_lower:
+            return 0.45  # Waste incineration with energy recovery
+
+        if 'landfill' in activity_lower:
+            return 0.2  # Landfilling textiles
+
+        if 'recycling' in activity_lower:
+            return -2.0  # Recycling: credit for avoided virgin production
+
+        # ENERGY (kg CO2 eq / unit)
+        if activity_key == 'Electricity':
+            return 0.55  # kWh - Global average grid mix
+
+        if 'natural gas' in activity_lower:
+            return 0.056  # per MJ
+
+        if 'steam' in activity_lower:
+            return 0.065  # per MJ (from natural gas boiler)
+
+        # WATER & CHEMICALS
+        if 'water' in activity_lower and 'waste' not in activity_lower:
+            return 0.0002  # Tap water: very low per kg
+
+        if 'wastewater' in activity_lower:
+            return 0.35  # per m3 - treatment energy
+
+        # DEFAULT
+        return 1.0  # Fallback for unmapped activities
+
     def initialize(self):
         """Initialize Brightway2 project and databases"""
         if self._initialized:
@@ -574,23 +718,54 @@ class Brightway2Engine:
         new_db = Database(db_name)
         new_db.register()
         
-        # Add textile activities based on mapping
+        # Add textile activities based on mapping with emission factors
         activities_data = {}
+
+        # Get biosphere database for CO2 emissions
+        # Note: This requires biosphere3 to be set up via bw2setup()
+        try:
+            biosphere = Database('biosphere3')
+            # Find CO2 emission flow
+            co2_flow = None
+            for act in biosphere:
+                if 'carbon dioxide' in act['name'].lower() and 'air' in act.get('categories', [''])[0].lower():
+                    co2_flow = act.key
+                    break
+        except:
+            co2_flow = None
+            logger.warning("Biosphere3 database not found - activities will have no environmental flows")
+
         for activity_key, activity_info in self.TEXTILE_ACTIVITY_MAPPING.items():
             act_code = self._normalize_activity_code(activity_key)
+
+            # Base exchanges: production
+            exchanges = [{
+                'input': (db_name, act_code),
+                'amount': 1.0,
+                'type': 'production',
+                'unit': activity_info['unit']
+            }]
+
+            # Add simplified emission factors (kg CO2 eq per unit)
+            # These are rough estimates - real database would have detailed flows
+            emission_factor = self._get_emission_factor(activity_key, activity_info['unit'])
+
+            if co2_flow and emission_factor > 0:
+                exchanges.append({
+                    'input': co2_flow,
+                    'amount': emission_factor,
+                    'type': 'biosphere',
+                    'unit': 'kg'
+                })
+
             activities_data[(db_name, act_code)] = {
-                    'name': activity_info['name'],
-                    'unit': activity_info['unit'],
-                    'location': 'GLO',
-                    'type': 'process',
-                    'exchanges': [{
-                        'input': (db_name, act_code),
-                        'amount': 1.0,
-                        'type': 'production',
-                        'unit': activity_info['unit']
-                    }]
-                }
-            
+                'name': activity_info['name'],
+                'unit': activity_info['unit'],
+                'location': 'GLO',
+                'type': 'process',
+                'exchanges': exchanges
+            }
+
         new_db.write(activities_data)
         logger.info(f"Created database: {db_name} with {len(activities_data)} activities")
         
@@ -612,8 +787,12 @@ class Brightway2Engine:
         # Build exchanges based on input data
         exchanges = []
         weight_kg = project.product_weight_grams / 1000
-        
+
         if project.industry == "textile" and input_data:
+            # New simplified textile schema (4 steps: raw_materials, textile_processing, confection, logistics)
+            exchanges = self._build_textile_simple_exchanges(input_data, weight_kg, project)
+        elif project.industry == "bawear" and input_data:
+            # Original detailed bAwear schema (10 steps: fibers, yarns, fabrics, etc.)
             exchanges = self._build_textile_exchanges(input_data, weight_kg, project)
         elif project.industry == "footwear":
             exchanges = self._build_footwear_exchanges(input_data, weight_kg, project)
@@ -803,7 +982,163 @@ class Brightway2Engine:
                     })
         
         return exchanges
-    
+
+    def _build_textile_simple_exchanges(self, input_data: Dict, weight_kg: float, project: LCAProject) -> List[Dict]:
+        """
+        Build exchanges for the simplified textile schema (4 steps).
+        Sections: raw_materials, textile_processing, confection, logistics
+        """
+        exchanges = []
+        base_db = project.database
+
+        # 1. RAW MATERIALS - Fiber production
+        if 'raw_materials' in input_data:
+            raw_materials = input_data['raw_materials']
+            if isinstance(raw_materials, list):
+                for item in raw_materials:
+                    fiber_type = item.get('fiber_type', '')
+                    fiber_weight = item.get('net_weight_kg', 0)
+
+                    # Map fiber type to activity code
+                    fiber_code = self._normalize_activity_code(fiber_type)
+
+                    exchanges.append({
+                        'input': (base_db, fiber_code if fiber_code else 'cotton_fiber_global'),
+                        'amount': fiber_weight,
+                        'type': 'technosphere',
+                        'unit': 'kg'
+                    })
+
+                    # Add fertilizer impact if specified
+                    fertilizer_n = item.get('fertilizer_n_kg', 0)
+                    if fertilizer_n > 0:
+                        exchanges.append({
+                            'input': (base_db, 'natural_gas'),
+                            'amount': fertilizer_n * fiber_weight * 40,  # Approx 40 MJ per kg N
+                            'type': 'technosphere',
+                            'unit': 'MJ'
+                        })
+
+        # 2. TEXTILE PROCESSING - Spinning, dyeing, energy
+        if 'textile_processing' in input_data:
+            processing = input_data['textile_processing']
+
+            # Spinning energy
+            spinning_tech = processing.get('spinning_technology', 'Ring Spinning')
+            spinning_kwh = processing.get('spinning_electricity_kwh', 0)
+            if spinning_kwh > 0:
+                spinning_code = self._normalize_activity_code(spinning_tech)
+                exchanges.append({
+                    'input': (base_db, spinning_code if spinning_code else 'ring_spinning'),
+                    'amount': weight_kg,
+                    'type': 'technosphere',
+                    'unit': 'kg'
+                })
+                exchanges.append({
+                    'input': (base_db, 'electricity'),
+                    'amount': spinning_kwh * weight_kg,
+                    'type': 'technosphere',
+                    'unit': 'kWh'
+                })
+
+            # Dyeing process
+            dyeing_type = processing.get('dyeing_process_type', '')
+            if dyeing_type and dyeing_type != 'No Dyeing':
+                dyeing_code = self._normalize_activity_code(dyeing_type)
+                exchanges.append({
+                    'input': (base_db, dyeing_code if dyeing_code else 'dyeing_jet'),
+                    'amount': weight_kg,
+                    'type': 'technosphere',
+                    'unit': 'kg'
+                })
+
+                # Water consumption
+                water_l = processing.get('water_consumption_l', 0)
+                if water_l > 0:
+                    exchanges.append({
+                        'input': (base_db, 'water'),
+                        'amount': water_l * weight_kg / 1000,  # Convert L to m3
+                        'type': 'technosphere',
+                        'unit': 'kg'
+                    })
+
+                # Energy consumption for dyeing/wet processing
+                energy_mj = processing.get('energy_consumption_mj', 0)
+                if energy_mj > 0:
+                    exchanges.append({
+                        'input': (base_db, 'steam'),
+                        'amount': energy_mj * weight_kg,
+                        'type': 'technosphere',
+                        'unit': 'MJ'
+                    })
+
+                # Wastewater treatment if ETP present
+                if processing.get('onsite_etp', False) and water_l > 0:
+                    exchanges.append({
+                        'input': (base_db, 'wastewater_treatment'),
+                        'amount': water_l * weight_kg / 1000,  # Convert L to m3
+                        'type': 'technosphere',
+                        'unit': 'm3'
+                    })
+
+        # 3. CONFECTION - Manufacturing waste and packaging
+        if 'confection' in input_data:
+            confection = input_data['confection']
+
+            # Fabric waste
+            waste_rate = confection.get('fabric_waste_rate', 0) / 100
+            if waste_rate > 0:
+                waste_kg = weight_kg * waste_rate
+                # Assume waste goes to landfill (simplified)
+                exchanges.append({
+                    'input': (base_db, 'landfill'),
+                    'amount': waste_kg,
+                    'type': 'technosphere',
+                    'unit': 'kg'
+                })
+
+            # Packaging
+            packaging_kg = confection.get('packaging_weight_kg', 0)
+            if packaging_kg > 0:
+                # Assume plastic packaging
+                exchanges.append({
+                    'input': (base_db, 'polyester_fiber_global'),  # Using as proxy for plastic
+                    'amount': packaging_kg,
+                    'type': 'technosphere',
+                    'unit': 'kg'
+                })
+
+        # 4. LOGISTICS - Transportation
+        if 'logistics' in input_data:
+            logistics = input_data['logistics']
+            if isinstance(logistics, list):
+                for leg in logistics:
+                    distance_km = leg.get('distance_km', 0)
+                    transport_mode = leg.get('transport_mode', 'Truck (Diesel)')
+
+                    if distance_km > 0:
+                        # Convert to tkm (tonne-kilometers)
+                        tkm = (weight_kg / 1000) * distance_km
+
+                        # Map transport mode to activity
+                        if 'Sea Freight' in transport_mode or 'Container' in transport_mode:
+                            mode_code = 'container_ship'
+                        elif 'Air' in transport_mode:
+                            mode_code = 'aircraft'
+                        elif 'Rail' in transport_mode:
+                            mode_code = 'train'
+                        else:  # Truck/Van
+                            mode_code = 'truck'
+
+                        exchanges.append({
+                            'input': (base_db, mode_code),
+                            'amount': tkm,
+                            'type': 'technosphere',
+                            'unit': 'tkm'
+                        })
+
+        return exchanges
+
     def _build_footwear_exchanges(self, input_data: Dict, weight_kg: float, project: LCAProject) -> List[Dict]:
         """Build exchanges for footwear products"""
         exchanges = []
@@ -933,30 +1268,36 @@ class Brightway2Engine:
             try:
                 # Find matching method in Brightway2
                 method_tuple = self._find_method(cat_info[0], cat_info[1])
-                
+
                 if method_tuple:
-                    # Get the activity
-                    activity = Database(product_system['database']).get('main_product')
-                    
+                    logger.info(f"Found method for {cat_key}: {method_tuple}")
+
+                    # Get the activity using the correct tuple key
+                    db = Database(product_system['database'])
+                    activity = db.get(product_system['activity_key'])
+                    logger.info(f"Retrieved activity: {activity['name']} from database {product_system['database']}")
+
                     # Perform LCA calculation
                     lca = bc.LCA({activity: 1}, method_tuple)
                     lca.lci()
                     lca.lcia()
-                    
+
                     impact_value = float(lca.score)
-                    
+                    logger.info(f"Brightway2 calculation SUCCESS for {cat_key}: {impact_value} {cat_info[3]}")
+
                     results['impact_categories'][cat_key] = {
                         'value': impact_value,
                         'unit': cat_info[3],
                         'abbreviation': cat_info[2],
                         'name': cat_info[1]
                     }
-                    
+
                     # Contribution analysis by stage
                     results['contribution_by_stage'][cat_key] = self._calculate_contributions(
                         lca, input_data, project
                     )
                 else:
+                    logger.warning(f"No Brightway2 method found for {cat_key} - using estimation")
                     # Use calculated estimates based on input data
                     estimated_value = self._estimate_impact(cat_key, input_data, project)
                     results['impact_categories'][cat_key] = {
@@ -968,9 +1309,11 @@ class Brightway2Engine:
                     results['contribution_by_stage'][cat_key] = self._estimate_contributions(
                         cat_key, input_data, project
                     )
-                    
+
             except Exception as e:
-                logger.warning(f"Error calculating {cat_key}: {str(e)}")
+                import traceback
+                logger.error(f"Error calculating {cat_key}: {str(e)}")
+                logger.error(f"Traceback: {traceback.format_exc()}")
                 # Fall back to estimation
                 estimated_value = self._estimate_impact(cat_key, input_data, project)
                 results['impact_categories'][cat_key] = {
@@ -1040,6 +1383,74 @@ class Brightway2Engine:
         stages: Dict[str, List[tuple]] = {}
 
         if project.industry == "textile":
+            # NEW SIMPLIFIED TEXTILE SCHEMA (4 steps)
+            # Sections: raw_materials, textile_processing, confection, logistics
+            stages = {
+                "raw_materials": [],
+                "textile_processing": [],
+                "confection": [],
+                "logistics": [],
+            }
+
+            # 1. Raw materials
+            if 'raw_materials' in input_data:
+                raw_materials = input_data['raw_materials']
+                if isinstance(raw_materials, list):
+                    for item in raw_materials:
+                        fiber_type = item.get('fiber_type', '')
+                        fiber_code = self._normalize_activity_code(fiber_type)
+                        if fiber_code:
+                            stages["raw_materials"].append((base_db, fiber_code))
+
+            # 2. Textile processing (spinning + dyeing)
+            if 'textile_processing' in input_data:
+                processing = input_data['textile_processing']
+                spinning_tech = processing.get('spinning_technology', '')
+                if spinning_tech:
+                    spinning_code = self._normalize_activity_code(spinning_tech)
+                    if spinning_code:
+                        stages["textile_processing"].append((base_db, spinning_code))
+
+                dyeing_type = processing.get('dyeing_process_type', '')
+                if dyeing_type and dyeing_type != 'No Dyeing':
+                    dyeing_code = self._normalize_activity_code(dyeing_type)
+                    if dyeing_code:
+                        stages["textile_processing"].append((base_db, dyeing_code))
+
+                # Energy activities
+                if processing.get('spinning_electricity_kwh', 0) > 0:
+                    stages["textile_processing"].append((base_db, 'electricity'))
+                if processing.get('energy_consumption_mj', 0) > 0:
+                    stages["textile_processing"].append((base_db, 'steam'))
+                if processing.get('water_consumption_l', 0) > 0:
+                    stages["textile_processing"].append((base_db, 'water'))
+
+            # 3. Confection (waste and packaging)
+            if 'confection' in input_data:
+                confection = input_data['confection']
+                if confection.get('fabric_waste_rate', 0) > 0:
+                    stages["confection"].append((base_db, 'landfill'))
+                if confection.get('packaging_weight_kg', 0) > 0:
+                    stages["confection"].append((base_db, 'polyester_fiber_global'))
+
+            # 4. Logistics
+            if 'logistics' in input_data:
+                logistics = input_data['logistics']
+                if isinstance(logistics, list):
+                    for leg in logistics:
+                        transport_mode = leg.get('transport_mode', '')
+                        if 'Sea Freight' in transport_mode or 'Container' in transport_mode:
+                            stages["logistics"].append((base_db, 'container_ship'))
+                        elif 'Air' in transport_mode:
+                            stages["logistics"].append((base_db, 'aircraft'))
+                        elif 'Rail' in transport_mode:
+                            stages["logistics"].append((base_db, 'train'))
+                        else:
+                            stages["logistics"].append((base_db, 'truck'))
+
+        elif project.industry == "bawear":
+            # ORIGINAL DETAILED BAWEAR SCHEMA (10 steps)
+            # Sections: yarns, fabrics, manufacturing, transport, use_phase, end_of_life
             stages = {
                 "raw_materials": [],
                 "yarn_production": [],
