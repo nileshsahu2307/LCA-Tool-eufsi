@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
 import HomePage from "./pages/HomePage";
 import NewAssessment from "./pages/NewAssessment";
+import BatchAssessment from "./pages/BatchAssessment";
 import Results from "./pages/Results";
 import History from "./pages/History";
 import AuthPage from "./pages/AuthPage";
@@ -45,6 +46,11 @@ function App() {
           <Route path="/history" element={
             <ProtectedRoute>
               <History />
+            </ProtectedRoute>
+          } />
+          <Route path="/batch-assessment" element={
+            <ProtectedRoute>
+              <BatchAssessment />
             </ProtectedRoute>
           } />
         </Routes>

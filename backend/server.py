@@ -3615,9 +3615,17 @@ async def get_status_checks():
 @api_router.get("/schemas/{industry}/csv-template")
 async def generate_csv_template(industry: str):
     """
-    Generate dynamic CSV template based on industry schema.
+    Generate CSV template for TEXTILE schema only.
+    Batch processing is exclusively available for textile assessments.
     Returns a CSV file ready for download.
     """
+    # Batch processing is only available for textile industry
+    if industry != "textile":
+        raise HTTPException(
+            status_code=400,
+            detail="Batch processing is only available for textile assessments. Please use the standard assessment form for other industries."
+        )
+
     if industry not in INDUSTRY_SCHEMAS:
         raise HTTPException(status_code=404, detail=f"Industry {industry} not found")
 
@@ -3670,9 +3678,17 @@ class BatchValidationRequest(BaseModel):
 @api_router.post("/batch/parse-csv")
 async def parse_and_validate_csv(file: UploadFile = File(...), industry: str = "textile"):
     """
-    Parse uploaded CSV and validate against schema.
+    Parse uploaded CSV and validate against TEXTILE schema only.
+    Batch processing is exclusively available for textile assessments.
     Returns validated products with error/warning messages.
     """
+    # Batch processing is only available for textile industry
+    if industry != "textile":
+        raise HTTPException(
+            status_code=400,
+            detail="Batch processing is only available for textile assessments. Please use the standard assessment form for other industries."
+        )
+
     if industry not in INDUSTRY_SCHEMAS:
         raise HTTPException(status_code=404, detail=f"Industry {industry} not found")
 
@@ -3731,10 +3747,18 @@ class BatchCalculateRequest(BaseModel):
 @api_router.post("/batch/calculate")
 async def calculate_batch(request: BatchCalculateRequest):
     """
-    Calculate LCA for multiple products in parallel.
+    Calculate LCA for multiple TEXTILE products in parallel.
+    Batch processing is exclusively available for textile assessments.
     """
     industry = request.industry
     products = request.products
+
+    # Batch processing is only available for textile industry
+    if industry != "textile":
+        raise HTTPException(
+            status_code=400,
+            detail="Batch processing is only available for textile assessments. Please use the standard assessment form for other industries."
+        )
 
     if industry not in INDUSTRY_SCHEMAS:
         raise HTTPException(status_code=404, detail=f"Industry {industry} not found")
