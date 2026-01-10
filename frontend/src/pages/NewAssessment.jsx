@@ -335,7 +335,7 @@ export default function NewAssessment() {
               onCheckedChange={(checked) => handleFieldChange(sectionId, field.id, checked, index)}
               data-testid={`checkbox-${sectionId}-${field.id}`}
             />
-            <Label htmlFor={fieldKey} className="text-sm text-slate-600">
+            <Label htmlFor={fieldKey} className="text-sm text-muted-foreground">
               {field.label}
             </Label>
           </div>
@@ -358,7 +358,7 @@ export default function NewAssessment() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="text-eu-blue">Project Configuration</CardTitle>
+          <CardTitle className="text-primary">Project Configuration</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -406,7 +406,7 @@ export default function NewAssessment() {
       
       <Card>
         <CardHeader>
-          <CardTitle className="text-eu-blue">LCA Configuration</CardTitle>
+          <CardTitle className="text-primary">LCA Configuration</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -489,7 +489,7 @@ export default function NewAssessment() {
             <Card key={index} className="relative">
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg text-eu-blue">
+                  <CardTitle className="text-lg text-primary">
                     {section.title} {index + 1}
                   </CardTitle>
                   {items.length > 1 && (
@@ -510,7 +510,7 @@ export default function NewAssessment() {
                   {section.fields.map((field) => (
                     <div key={field.id} className={field.type === "textarea" ? "md:col-span-2" : ""}>
                       {field.type !== "boolean" && (
-                        <Label className="text-sm text-slate-600 mb-1 block">
+                        <Label className="text-sm text-muted-foreground mb-1 block">
                           {field.label}
                           {field.required && <span className="text-red-500 ml-1">*</span>}
                         </Label>
@@ -541,7 +541,7 @@ export default function NewAssessment() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-eu-blue">{section.title}</CardTitle>
+          <CardTitle className="text-primary">{section.title}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -566,8 +566,8 @@ export default function NewAssessment() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 text-eu-blue animate-spin mx-auto mb-4" />
-          <p className="text-slate-600">Loading assessment form...</p>
+          <Loader2 className="w-12 h-12 text-primary animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading assessment form...</p>
         </div>
       </div>
     );
@@ -575,25 +575,25 @@ export default function NewAssessment() {
 
   if (calculating) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
-          <div className="w-24 h-24 border-4 border-slate-200 border-t-eu-blue rounded-full animate-spin mx-auto mb-6" />
-          <h2 className="font-heading font-bold text-2xl text-slate-900 mb-2">Running LCA Calculation</h2>
-          <p className="text-slate-600 mb-2">Powered by Brightway2</p>
-          <p className="text-sm text-slate-500">This may take a few moments...</p>
+          <div className="w-24 h-24 border-4 border-border border-t-primary rounded-full animate-spin mx-auto mb-6" />
+          <h2 className="font-heading font-bold text-2xl text-foreground mb-2">Running LCA Calculation</h2>
+          <p className="text-muted-foreground mb-2">Powered by Brightway2</p>
+          <p className="text-sm text-muted-foreground">This may take a few moments...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="min-h-screen bg-background flex">
       {/* Sidebar */}
       <aside className="wizard-sidebar w-64 min-h-screen p-6 hidden lg:block sticky top-0">
         <div className="mb-8">
           <button 
             onClick={() => navigate("/")}
-            className="flex items-center gap-2 text-slate-600 hover:text-eu-blue transition-colors"
+            className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
             data-testid="back-to-home"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -602,8 +602,8 @@ export default function NewAssessment() {
         </div>
         
         <div className="mb-6">
-          <h2 className="font-heading font-bold text-lg text-slate-900 capitalize">{industry} Assessment</h2>
-          <p className="text-sm text-slate-500">Complete all sections</p>
+          <h2 className="font-heading font-bold text-lg text-foreground capitalize">{industry} Assessment</h2>
+          <p className="text-sm text-muted-foreground">Complete all sections</p>
         </div>
         
         <nav className="space-y-2">
@@ -613,8 +613,8 @@ export default function NewAssessment() {
               onClick={() => setCurrentStep(index)}
               className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
                 currentStep === index 
-                  ? "bg-eu-blue/10 text-eu-blue" 
-                  : "text-slate-600 hover:bg-slate-100"
+                  ? "bg-primary/10 text-primary" 
+                  : "text-muted-foreground hover:bg-accent"
               }`}
               data-testid={`step-${step.id}`}
             >
@@ -637,7 +637,7 @@ export default function NewAssessment() {
           <div className="lg:hidden mb-6">
             <button 
               onClick={() => navigate("/")}
-              className="flex items-center gap-2 text-slate-600"
+              className="flex items-center gap-2 text-muted-foreground"
             >
               <ArrowLeft className="w-4 h-4" />
               Back
@@ -646,10 +646,10 @@ export default function NewAssessment() {
           
           {/* Step Header */}
           <div className="mb-8">
-            <div className="flex items-center gap-2 text-sm text-slate-500 mb-2">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
               <span>Step {currentStep + 1} of {steps.length}</span>
             </div>
-            <h1 className="font-heading font-bold text-2xl text-slate-900">
+            <h1 className="font-heading font-bold text-2xl text-foreground">
               {steps[currentStep]?.title}
             </h1>
           </div>
@@ -689,7 +689,7 @@ export default function NewAssessment() {
                 <Button
                   onClick={runCalculation}
                   disabled={!config.name}
-                  className="gap-2 bg-eu-blue hover:bg-eu-blue/90"
+                  className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground"
                   data-testid="run-calculation"
                 >
                   <Play className="w-4 h-4" />
@@ -698,7 +698,7 @@ export default function NewAssessment() {
               ) : (
                 <Button
                   onClick={() => setCurrentStep(prev => Math.min(steps.length - 1, prev + 1))}
-                  className="gap-2 bg-eu-blue hover:bg-eu-blue/90"
+                  className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground"
                   data-testid="next-step"
                 >
                   Next
