@@ -510,7 +510,7 @@ export default function NewAssessment() {
                   {section.fields.map((field) => (
                     <div key={field.id} className={field.type === "textarea" ? "md:col-span-2" : ""}>
                       {field.type !== "boolean" && (
-                        <Label className="text-sm text-muted-foreground mb-1 block">
+                        <Label htmlFor={`${section.id}-${field.id}-${index}`}>
                           {field.label}
                           {field.required && <span className="text-red-500 ml-1">*</span>}
                         </Label>
@@ -548,7 +548,7 @@ export default function NewAssessment() {
             {section.fields.map((field) => (
               <div key={field.id} className={field.type === "textarea" ? "md:col-span-2" : ""}>
                 {field.type !== "boolean" && (
-                  <Label className="text-sm text-slate-600 mb-1 block">
+                  <Label htmlFor={`${section.id}-${field.id}`}>
                     {field.label}
                     {field.required && <span className="text-red-500 ml-1">*</span>}
                   </Label>
