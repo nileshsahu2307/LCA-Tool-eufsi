@@ -1691,6 +1691,185 @@ TEXTILE_SCHEMA = {
     ]
 }
 
+BAWEAR_SCHEMA = {
+    "industry": "bawear",
+    "name": "Textile LCA Input Schema",
+    "description": "Comprehensive input schema for textile product LCA based on bAwear model",
+    "sections": [
+        {
+            "id": "product",
+            "title": "Product Information",
+            "fields": [
+                {"id": "product_id", "label": "Product ID", "type": "text", "required": True},
+                {"id": "description", "label": "Description", "type": "textarea", "required": False},
+                {"id": "weight_grams", "label": "Weight", "type": "number", "unit": "grams", "required": True},
+                {"id": "product_scenario", "label": "Product Scenario", "type": "select", "required": True,
+                 "options": [
+                     "Activewear - Tee cotton", "Activewear - Tee polyester", "Activewear - Leggings",
+                     "Casual - T-shirt cotton", "Casual - T-shirt blended", "Casual - Polo shirt",
+                     "Casual - Jeans", "Casual - Chinos", "Casual - Dress",
+                     "Formal - Shirt cotton", "Formal - Blouse", "Formal - Suit jacket",
+                     "Outerwear - Jacket light", "Outerwear - Jacket winter", "Outerwear - Coat",
+                     "Underwear - Briefs", "Underwear - Bra", "Underwear - Socks",
+                     "Workwear - Work jacket", "Workwear - Work pants", "Workwear - Coverall"
+                 ]}
+            ]
+        },
+        {
+            "id": "fibers",
+            "title": "Fiber Composition",
+            "repeatable": True,
+            "max_items": 5,
+            "fields": [
+                {"id": "material", "label": "Fiber Material", "type": "select", "required": True,
+                 "options": [
+                     "Cotton fiber (Global)", "Cotton, organic (Global)", "Cotton, recycled (Global)",
+                     "Polyester fiber (Global)", "Polyester, recycled (Global)",
+                     "Wool fiber (Global)", "Wool, recycled (Global)",
+                     "Viscose fiber (Global)", "Lyocell fiber (Global)", "Modal fiber (Global)",
+                     "Elastane fiber (Global)", "Nylon fiber (Global)", "Nylon, recycled (Global)",
+                     "Acrylic fiber (Global)", "Linen fiber (Global)", "Hemp fiber (Global)",
+                     "Silk fiber (Global)", "Bamboo fiber (Global)"
+                 ]},
+                {"id": "percentage", "label": "Percentage", "type": "number", "unit": "%", "min": 0, "max": 100, "required": True},
+                {"id": "production_location", "label": "Production Location", "type": "select", "required": True,
+                 "options": ["Global", "China", "India", "Bangladesh", "Vietnam", "Turkey", "Indonesia",
+                            "Pakistan", "USA", "Europe", "Brazil", "Egypt", "Thailand"]}
+            ]
+        },
+        {
+            "id": "yarns",
+            "title": "Yarn Production",
+            "repeatable": True,
+            "max_items": 5,
+            "fields": [
+                {"id": "name", "label": "Yarn Name", "type": "text", "required": True},
+                {"id": "count_nm", "label": "Yarn Count", "type": "number", "unit": "Nm", "required": True},
+                {"id": "percentage", "label": "Percentage in Product", "type": "number", "unit": "%", "min": 0, "max": 100, "required": True},
+                {"id": "spinning_method", "label": "Spinning Method", "type": "select", "required": True,
+                 "options": [
+                     "Ring spinning for weaving, carded yarn", "Ring spinning for weaving, combed yarn",
+                     "Ring spinning for knitting, carded yarn", "Ring spinning for knitting, combed yarn",
+                     "Open end spinning for weaving, carded yarn", "Open end spinning for knitting, carded yarn",
+                     "Air-jet spinning for knitting, carded yarn", "Air-jet spinning for weaving, combed yarn",
+                     "Vortex spinning for knitting, carded yarn", "Vortex spinning for weaving, combed yarn",
+                     "Multifilament spinning of synthetic yarns"
+                 ]}
+            ]
+        },
+        {
+            "id": "fabrics",
+            "title": "Fabric Production",
+            "repeatable": True,
+            "max_items": 3,
+            "fields": [
+                {"id": "name", "label": "Fabric Name", "type": "text", "required": True},
+                {"id": "construction_method", "label": "Construction Method", "type": "select", "required": True,
+                 "options": [
+                     "Knitting - Circular", "Knitting - Flatbed", "Knitting - Warp",
+                     "Weaving - Air jet", "Weaving - Water jet", "Weaving - Rapier",
+                     "Weaving - Projectile", "Non-woven, needle punch", "Non-woven, spunbond"
+                 ]},
+                {"id": "percentage", "label": "Percentage in Product", "type": "number", "unit": "%", "min": 0, "max": 100, "required": True},
+                {"id": "finishing_method", "label": "Finishing Method", "type": "select", "required": True,
+                 "options": [
+                     "Continuous - natural fibers / fiber blends",
+                     "Continuous - synthetic fibers",
+                     "Semi-continuous - natural fibers / fiber blends",
+                     "Semi-continuous - synthetic fibers",
+                     "Batch - natural fibers", "Batch - synthetic fibers"
+                 ]},
+                {"id": "coloring_method", "label": "Coloring Method", "type": "select", "required": True,
+                 "options": [
+                     "No dyeing/printing", "Spun-dyed (dope dyed)",
+                     "Jet dyeing - natural fibers / fiber blends", "Jet dyeing - synthetic fibers",
+                     "Jigger dyeing", "Pad batch dyeing", "Pad-steam dyeing",
+                     "Screen printing", "Digital printing", "Transfer printing"
+                 ]},
+                {"id": "color_depth", "label": "Color Depth", "type": "select", "required": True,
+                 "options": ["Pale/Light", "Medium", "Dark", "Very Dark"]}
+            ]
+        },
+        {
+            "id": "manufacturing",
+            "title": "Manufacturing",
+            "fields": [
+                {"id": "finish_treatment_1", "label": "Finish Treatment 1", "type": "select", "required": False,
+                 "options": ["None", "Embroidery", "Ozone treatment", "Garment dyeing", "Ironing",
+                            "Stone wash", "Enzyme wash", "Laser finishing", "Transfer print"]},
+                {"id": "finish_treatment_2", "label": "Finish Treatment 2", "type": "select", "required": False,
+                 "options": ["None", "Embroidery", "Ozone treatment", "Garment dyeing", "Ironing",
+                            "Stone wash", "Enzyme wash", "Laser finishing", "Transfer print"]},
+                {"id": "cutting_waste_percentage", "label": "Cutting Waste", "type": "number", "unit": "%", "min": 0, "max": 50, "required": True},
+                {"id": "waste_recycled_percentage", "label": "Waste Recycled", "type": "number", "unit": "%", "min": 0, "max": 100, "required": True},
+                {"id": "waste_incinerated_percentage", "label": "Waste Incinerated", "type": "number", "unit": "%", "min": 0, "max": 100, "required": True},
+                {"id": "waste_landfilled_percentage", "label": "Waste Landfilled", "type": "number", "unit": "%", "min": 0, "max": 100, "required": True}
+            ]
+        },
+        {
+            "id": "production_locations",
+            "title": "Production Locations & Energy",
+            "fields": [
+                {"id": "spinning_location", "label": "Spinning Location", "type": "select", "required": True,
+                 "options": ["Global", "China", "India", "Bangladesh", "Vietnam", "Turkey", "Indonesia",
+                            "Pakistan", "USA", "Europe", "Brazil", "Egypt", "Thailand"]},
+                {"id": "spinning_renewable_energy", "label": "Spinning Renewable Energy", "type": "number", "unit": "%", "min": 0, "max": 100, "required": True},
+                {"id": "fabric_construction_location", "label": "Fabric Construction Location", "type": "select", "required": True,
+                 "options": ["Global", "China", "India", "Bangladesh", "Vietnam", "Turkey", "Indonesia",
+                            "Pakistan", "USA", "Europe", "Brazil", "Egypt", "Thailand"]},
+                {"id": "fabric_construction_renewable_energy", "label": "Fabric Construction Renewable Energy", "type": "number", "unit": "%", "min": 0, "max": 100, "required": True},
+                {"id": "finishing_location", "label": "Finishing Location", "type": "select", "required": True,
+                 "options": ["Global", "China", "India", "Bangladesh", "Vietnam", "Turkey", "Indonesia",
+                            "Pakistan", "USA", "Europe", "Brazil", "Egypt", "Thailand"]},
+                {"id": "finishing_renewable_energy", "label": "Finishing Renewable Energy", "type": "number", "unit": "%", "min": 0, "max": 100, "required": True},
+                {"id": "manufacturing_location", "label": "Manufacturing Location", "type": "select", "required": True,
+                 "options": ["Global", "China", "India", "Bangladesh", "Vietnam", "Turkey", "Indonesia",
+                            "Pakistan", "USA", "Europe", "Brazil", "Egypt", "Thailand"]},
+                {"id": "manufacturing_renewable_energy", "label": "Manufacturing Renewable Energy", "type": "number", "unit": "%", "min": 0, "max": 100, "required": True}
+            ]
+        },
+        {
+            "id": "transport",
+            "title": "Transportation",
+            "fields": [
+                {"id": "final_destination", "label": "Final Destination", "type": "select", "required": True,
+                 "options": ["Global", "Europe", "North America", "Asia", "South America", "Africa", "Oceania"]},
+                {"id": "transport_1_mode", "label": "Transport 1 Mode", "type": "select", "required": True,
+                 "options": ["Truck", "Container ship", "Aircraft", "Train", "Barge"]},
+                {"id": "transport_1_distance", "label": "Transport 1 Distance", "type": "number", "unit": "km", "required": True},
+                {"id": "transport_2_mode", "label": "Transport 2 Mode", "type": "select", "required": False,
+                 "options": ["None", "Truck", "Container ship", "Aircraft", "Train", "Barge"]},
+                {"id": "transport_2_distance", "label": "Transport 2 Distance", "type": "number", "unit": "km", "required": False},
+                {"id": "transport_3_mode", "label": "Transport 3 Mode", "type": "select", "required": False,
+                 "options": ["None", "Truck", "Container ship", "Aircraft", "Train", "Barge"]},
+                {"id": "transport_3_distance", "label": "Transport 3 Distance", "type": "number", "unit": "km", "required": False}
+            ]
+        },
+        {
+            "id": "use_phase",
+            "title": "Use Phase",
+            "fields": [
+                {"id": "include", "label": "Include Use Phase", "type": "boolean", "required": True},
+                {"id": "washing_temperature", "label": "Washing Temperature", "type": "number", "unit": "°C", "required": False},
+                {"id": "drying_method", "label": "Drying Method", "type": "select", "required": False,
+                 "options": ["Line dry", "Tumble dry - low", "Tumble dry - medium", "Tumble dry - high"]},
+                {"id": "ironing", "label": "Ironing", "type": "boolean", "required": False},
+                {"id": "lifetime_washing_cycles", "label": "Lifetime Washing Cycles", "type": "number", "required": False}
+            ]
+        },
+        {
+            "id": "end_of_life",
+            "title": "End of Life",
+            "fields": [
+                {"id": "include", "label": "Include End of Life", "type": "boolean", "required": True},
+                {"id": "recycled_percentage", "label": "Recycled", "type": "number", "unit": "%", "min": 0, "max": 100, "required": False},
+                {"id": "incinerated_percentage", "label": "Incinerated", "type": "number", "unit": "%", "min": 0, "max": 100, "required": False},
+                {"id": "landfill_percentage", "label": "Landfill", "type": "number", "unit": "%", "min": 0, "max": 100, "required": False}
+            ]
+        }
+    ]
+}
+
 WATER_SCHEMA = {
     "industry": "water",
     "name": "Packaged Water LCA",
@@ -2120,7 +2299,7 @@ BATTERY_SCHEMA = {
 
 INDUSTRY_SCHEMAS = {
     "textile": TEXTILE_SCHEMA,
-    "bawear": TEXTILE_SCHEMA,  # bAwear uses same structure as textile
+    "bawear": BAWEAR_SCHEMA,  # bAwear uses detailed 10-step schema
     "water": WATER_SCHEMA,
     "food": FOOD_SCHEMA,
     "footwear": FOOTWEAR_SCHEMA,
