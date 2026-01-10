@@ -335,7 +335,7 @@ export default function NewAssessment() {
               onCheckedChange={(checked) => handleFieldChange(sectionId, field.id, checked, index)}
               data-testid={`checkbox-${sectionId}-${field.id}`}
             />
-            <Label htmlFor={fieldKey} className="text-sm text-muted-foreground">
+            <Label htmlFor={fieldKey}>
               {field.label}
             </Label>
           </div>
