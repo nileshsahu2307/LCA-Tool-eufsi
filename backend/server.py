@@ -1,6 +1,6 @@
-from fastapi import FastAPI, APIRouter, HTTPException, BackgroundTasks, Depends, status
+from fastapi import FastAPI, APIRouter, HTTPException, BackgroundTasks, Depends, status, UploadFile, File
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -15,6 +15,9 @@ import json
 import io
 import tempfile
 import shutil
+import pandas as pd
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import time
 
 # Authentication imports
 from jose import JWTError, jwt
@@ -3606,6 +3609,356 @@ async def get_status_checks():
         if isinstance(check['timestamp'], str):
             check['timestamp'] = datetime.fromisoformat(check['timestamp'])
     return status_checks
+
+# ============== BATCH PROCESSING ROUTES ==============
+
+@api_router.get("/schemas/{industry}/csv-template")
+async def generate_csv_template(industry: str):
+    """
+    Generate dynamic CSV template based on industry schema.
+    Returns a CSV file ready for download.
+    """
+    if industry not in INDUSTRY_SCHEMAS:
+        raise HTTPException(status_code=404, detail=f"Industry {industry} not found")
+
+    schema = INDUSTRY_SCHEMAS[industry]
+    headers = []
+    example_row = []
+
+    # Add product info section fields
+    for section in schema['sections']:
+        if section['id'] == 'product_info':
+            for field in section['fields']:
+                headers.append(field['id'])
+                example_row.append(f"Example {field['label']}" if field['type'] == 'text' else "")
+
+    # Add other sections
+    for section in schema['sections']:
+        if section['id'] == 'product_info':
+            continue
+
+        if section.get('repeatable'):
+            # Repeatable sections use _1, _2, _3 suffixes
+            max_items = section.get('max_items', 1)
+            for i in range(1, max_items + 1):
+                for field in section['fields']:
+                    headers.append(f"{field['id']}_{i}")
+                    example_row.append("")
+        else:
+            # Non-repeatable sections
+            for field in section['fields']:
+                headers.append(field['id'])
+                example_row.append("")
+
+    # Generate CSV content
+    csv_content = ",".join(headers) + "\n"
+    csv_content += ",".join(str(v) for v in example_row) + "\n"
+
+    # Return as downloadable CSV file
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f"attachment; filename={industry}_batch_template.csv"
+        }
+    )
+
+class BatchValidationRequest(BaseModel):
+    industry: str
+    file_content: str  # CSV content as string
+
+@api_router.post("/batch/parse-csv")
+async def parse_and_validate_csv(file: UploadFile = File(...), industry: str = "textile"):
+    """
+    Parse uploaded CSV and validate against schema.
+    Returns validated products with error/warning messages.
+    """
+    if industry not in INDUSTRY_SCHEMAS:
+        raise HTTPException(status_code=404, detail=f"Industry {industry} not found")
+
+    schema = INDUSTRY_SCHEMAS[industry]
+
+    try:
+        # Read CSV file
+        content = await file.read()
+        df = pd.read_csv(io.BytesIO(content))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Cannot read CSV file: {str(e)}")
+
+    # Validate structure
+    required_columns = get_required_columns(schema)
+    missing_columns = set(required_columns) - set(df.columns)
+
+    if missing_columns:
+        return {
+            "status": "error",
+            "message": f"Missing required columns: {', '.join(missing_columns)}",
+            "errors": [{"type": "MISSING_COLUMNS", "columns": list(missing_columns)}]
+        }
+
+    # Parse and validate each row
+    products = []
+
+    for row_idx, row in df.iterrows():
+        product = parse_row_to_product(row, schema, row_idx)
+
+        # Validate business rules
+        errors = validate_product(product, schema, row_idx)
+        warnings = generate_warnings(product, row_idx)
+
+        product['row_number'] = row_idx + 2  # +2 because row 1 is headers
+        product['errors'] = errors
+        product['warnings'] = warnings
+        product['is_valid'] = len(errors) == 0
+
+        products.append(product)
+
+    valid_count = len([p for p in products if p['is_valid']])
+    invalid_count = len([p for p in products if not p['is_valid']])
+
+    return {
+        "status": "success",
+        "total": len(products),
+        "valid": valid_count,
+        "invalid": invalid_count,
+        "products": products
+    }
+
+class BatchCalculateRequest(BaseModel):
+    industry: str
+    products: List[Dict[str, Any]]
+
+@api_router.post("/batch/calculate")
+async def calculate_batch(request: BatchCalculateRequest):
+    """
+    Calculate LCA for multiple products in parallel.
+    """
+    industry = request.industry
+    products = request.products
+
+    if industry not in INDUSTRY_SCHEMAS:
+        raise HTTPException(status_code=404, detail=f"Industry {industry} not found")
+
+    start_time = time.time()
+    results = []
+    successful = 0
+    failed = 0
+
+    # Process in parallel with ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        future_to_product = {
+            executor.submit(calculate_single_product, product, industry): product
+            for product in products
+        }
+
+        for future in as_completed(future_to_product):
+            product = future_to_product[future]
+            try:
+                result = future.result(timeout=30)  # 30 second timeout per product
+                results.append(result)
+
+                if result['status'] == 'success':
+                    successful += 1
+                else:
+                    failed += 1
+
+            except TimeoutError:
+                results.append({
+                    "product_id": product.get('product_info', {}).get('product_id', 'Unknown'),
+                    "product_name": product.get('product_info', {}).get('product_name', 'Unknown'),
+                    "status": "failed",
+                    "error": "Calculation timeout after 30 seconds"
+                })
+                failed += 1
+
+            except Exception as e:
+                results.append({
+                    "product_id": product.get('product_info', {}).get('product_id', 'Unknown'),
+                    "product_name": product.get('product_info', {}).get('product_name', 'Unknown'),
+                    "status": "failed",
+                    "error": f"Unexpected error: {str(e)}"
+                })
+                failed += 1
+
+    end_time = time.time()
+
+    return {
+        "batch_id": str(uuid.uuid4()),
+        "total_products": len(products),
+        "successful": successful,
+        "failed": failed,
+        "processing_time_seconds": round(end_time - start_time, 2),
+        "results": results
+    }
+
+# Helper functions for batch processing
+
+def get_required_columns(schema: dict) -> List[str]:
+    """Generate list of required columns from schema."""
+    required = []
+
+    for section in schema['sections']:
+        if section.get('repeatable'):
+            # For repeatable sections, at least _1 suffix is required
+            for field in section['fields']:
+                if field.get('required'):
+                    required.append(f"{field['id']}_1")
+        else:
+            # Non-repeatable sections
+            for field in section['fields']:
+                if field.get('required'):
+                    required.append(field['id'])
+
+    return required
+
+def parse_row_to_product(row: pd.Series, schema: dict, row_idx: int) -> dict:
+    """Parse CSV row into product data structure."""
+    product = {}
+
+    # Parse non-repeatable sections
+    for section in schema['sections']:
+        section_id = section['id']
+
+        if section.get('repeatable'):
+            # Parse repeatable section
+            product[section_id] = []
+            max_items = section.get('max_items', 1)
+
+            for i in range(1, max_items + 1):
+                item = {}
+                has_data = False
+
+                for field in section['fields']:
+                    col_name = f"{field['id']}_{i}"
+                    if col_name in row.index:
+                        value = row[col_name]
+                        if pd.notna(value) and value != "":
+                            has_data = True
+                            item[field['id']] = value
+
+                if has_data:
+                    product[section_id].append(item)
+        else:
+            # Parse non-repeatable section
+            product[section_id] = {}
+            for field in section['fields']:
+                col_name = field['id']
+                if col_name in row.index:
+                    value = row[col_name]
+                    if pd.notna(value) and value != "":
+                        product[section_id][field['id']] = value
+
+    return product
+
+def validate_product(product: dict, schema: dict, row_idx: int) -> List[str]:
+    """Validate product data against business rules."""
+    errors = []
+
+    # Rule 1: Fiber percentages must sum to 100%
+    if 'fiber_composition' in product:
+        fibers = product['fiber_composition']
+        if len(fibers) > 0:
+            try:
+                total_pct = sum(float(f.get('percentage', 0)) for f in fibers)
+                if abs(total_pct - 100) > 0.1:
+                    errors.append(f"Fiber percentages sum to {total_pct:.1f}%, must equal 100%")
+            except (ValueError, TypeError):
+                errors.append("Invalid fiber percentage values")
+
+    # Rule 2: Waste percentages must sum to 100%
+    if 'waste_management' in product:
+        waste = product['waste_management']
+        try:
+            waste_total = (
+                float(waste.get('waste_recycled', 0)) +
+                float(waste.get('waste_incinerated', 0)) +
+                float(waste.get('waste_landfilled', 0))
+            )
+            if abs(waste_total - 100) > 0.1:
+                errors.append(f"Waste percentages sum to {waste_total:.1f}%, must equal 100%")
+        except (ValueError, TypeError):
+            errors.append("Invalid waste percentage values")
+
+    # Rule 3: Required fields check
+    for section in schema['sections']:
+        section_id = section['id']
+        for field in section['fields']:
+            if field.get('required'):
+                if section.get('repeatable'):
+                    # Check at least one item exists with required field
+                    if section_id not in product or len(product.get(section_id, [])) == 0:
+                        errors.append(f"Missing required section '{section['title']}'")
+                        break
+                else:
+                    # Check field exists in section
+                    if section_id not in product or field['id'] not in product.get(section_id, {}):
+                        errors.append(f"Missing required field '{field['label']}'")
+
+    return errors
+
+def generate_warnings(product: dict, row_idx: int) -> List[str]:
+    """Generate warnings for data quality issues."""
+    warnings = []
+
+    # Warning: Missing optional renewable energy data
+    if 'yarn_production' in product:
+        yarn = product['yarn_production']
+        if 'spinning_renewable_energy' not in yarn:
+            warnings.append("Missing renewable energy % for spinning (will assume 0%)")
+
+    # Warning: No transport data
+    if 'logistics' not in product or len(product.get('logistics', [])) == 0:
+        warnings.append("No transport legs defined (will use default assumptions)")
+
+    return warnings
+
+def calculate_single_product(product: dict, industry: str) -> dict:
+    """Calculate LCA for a single product."""
+    product_id = product.get('product_info', {}).get('product_id', 'Unknown')
+    product_name = product.get('product_info', {}).get('product_name', 'Unknown')
+
+    try:
+        # For now, return mock data - will be replaced with actual Brightway2 calculation
+        # TODO: Integrate with existing bw_engine.calculate() logic
+
+        impacts = {
+            "climate_change_kg_co2eq": 5.2,  # Mock value
+            "water_use_liters": 2800,  # Mock value
+            "human_health_daly": 0.000012,  # Mock value
+            "ecosystems_pdf_m2_yr": 0.15,  # Mock value
+            "resource_availability_usd": 0.85,  # Mock value
+            "eutrophication_freshwater_kg_p_eq": 0.002,
+            "eutrophication_marine_kg_n_eq": 0.015,
+            "eutrophication_terrestrial_mol_n_eq": 0.08,
+            "acidification_mol_h_eq": 0.05,
+            "ecotoxicity_freshwater_ctue": 45.2,
+            "human_toxicity_cancer_ctuh": 0.0000015,
+            "human_toxicity_non_cancer_ctuh": 0.000025,
+            "ionizing_radiation_kbq_u235_eq": 0.12,
+            "land_use_pt": 12.5,
+            "ozone_depletion_kg_cfc11_eq": 0.0000008,
+            "particulate_matter_disease_incidence": 0.0000045,
+            "photochemical_ozone_kg_nmvoc_eq": 0.018
+        }
+
+        return {
+            "product_id": product_id,
+            "product_name": product_name,
+            "status": "success",
+            "impacts": impacts,
+            "data_quality": {
+                "score": 85,
+                "rating": "Good"
+            }
+        }
+
+    except Exception as e:
+        return {
+            "product_id": product_id,
+            "product_name": product_name,
+            "status": "failed",
+            "error": str(e)
+        }
 
 # Include the router in the main app
 app.include_router(api_router)
