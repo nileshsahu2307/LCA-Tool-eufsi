@@ -192,19 +192,19 @@ export default function BatchAssessment() {
                     e.preventDefault();
                     setDragActive(false);
                     const file = e.dataTransfer.files[0];
-                    if (file && file.name.endsWith('.csv')) {
+                    if (file && (file.name.endsWith('.csv') || file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
                       handleFileUpload(file);
                     } else {
-                      alert('Please upload a CSV file');
+                      alert('Please upload a CSV or Excel file (.csv, .xlsx, .xls)');
                     }
                   }}
                 >
                   <Upload className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-lg font-semibold mb-2">Drop CSV file here</h3>
+                  <h3 className="text-lg font-semibold mb-2">Drop CSV or Excel file here</h3>
                   <p className="text-muted-foreground mb-4">or click to browse</p>
                   <input
                     type="file"
-                    accept=".csv"
+                    accept=".csv,.xlsx,.xls"
                     className="hidden"
                     id="csv-upload"
                     onChange={(e) => {
@@ -224,6 +224,9 @@ export default function BatchAssessment() {
                       )}
                     </label>
                   </Button>
+                  <p className="text-xs text-muted-foreground mt-4">
+                    Accepts CSV (.csv) and Excel (.xlsx, .xls) files
+                  </p>
                 </div>
 
                 <div className="flex justify-between">

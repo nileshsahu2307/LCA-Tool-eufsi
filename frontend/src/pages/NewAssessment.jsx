@@ -31,6 +31,7 @@ export default function NewAssessment() {
   const [schema, setSchema] = useState(null);
   const [databases, setDatabases] = useState({});
   const [methods, setMethods] = useState({});
+  const [assessmentMode, setAssessmentMode] = useState(null); // 'single' or 'batch'
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState({});
   const [projectId, setProjectId] = useState(null);
@@ -581,6 +582,139 @@ export default function NewAssessment() {
           <h2 className="font-heading font-bold text-2xl text-foreground mb-2">Running LCA Calculation</h2>
           <p className="text-muted-foreground mb-2">Powered by Brightway2</p>
           <p className="text-sm text-muted-foreground">This may take a few moments...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Mode selection screen for textile industry
+  if (industry === 'textile' && !assessmentMode) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+        <div className="max-w-4xl mx-auto p-6 pt-12">
+          {/* Back Button */}
+          <Button
+            variant="ghost"
+            onClick={() => navigate('/')}
+            className="mb-6"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Home
+          </Button>
+
+          {/* Header */}
+          <div className="text-center mb-12">
+            <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-4">
+              Textile LCA Assessment
+            </h1>
+            <p className="text-lg text-slate-600 dark:text-slate-400">
+              Choose your assessment method
+            </p>
+          </div>
+
+          {/* Mode Selection Cards */}
+          <div className="grid md:grid-cols-2 gap-6 mb-8">
+            {/* Single Assessment Card */}
+            <Card
+              className="cursor-pointer hover:border-primary hover:shadow-lg transition-all duration-200 group"
+              onClick={() => setAssessmentMode('single')}
+            >
+              <CardHeader>
+                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
+                  <Circle className="w-8 h-8 text-primary" />
+                </div>
+                <CardTitle className="text-2xl">Single Product</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground mb-4">
+                  Assess one product at a time with detailed data entry through our guided form.
+                </p>
+                <ul className="space-y-2 text-sm text-muted-foreground">
+                  <li className="flex items-start">
+                    <CheckCircle2 className="w-4 h-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                    <span>Step-by-step guided assessment</span>
+                  </li>
+                  <li className="flex items-start">
+                    <CheckCircle2 className="w-4 h-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                    <span>Comprehensive data entry</span>
+                  </li>
+                  <li className="flex items-start">
+                    <CheckCircle2 className="w-4 h-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                    <span>Detailed results & insights</span>
+                  </li>
+                  <li className="flex items-start">
+                    <CheckCircle2 className="w-4 h-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                    <span>Best for detailed analysis</span>
+                  </li>
+                </ul>
+                <Button className="w-full mt-6 group-hover:bg-primary">
+                  Start Single Assessment
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Batch Assessment Card */}
+            <Card
+              className="cursor-pointer hover:border-primary hover:shadow-lg transition-all duration-200 group"
+              onClick={() => navigate('/batch-assessment')}
+            >
+              <CardHeader>
+                <div className="w-16 h-16 rounded-full bg-blue-500/10 flex items-center justify-center mb-4 group-hover:bg-blue-500/20 transition-colors">
+                  <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <CardTitle className="text-2xl">Batch Processing</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground mb-4">
+                  Assess multiple products at once by uploading a CSV or Excel file.
+                </p>
+                <ul className="space-y-2 text-sm text-muted-foreground">
+                  <li className="flex items-start">
+                    <CheckCircle2 className="w-4 h-4 text-blue-500 mr-2 mt-0.5 flex-shrink-0" />
+                    <span>Process 100+ products</span>
+                  </li>
+                  <li className="flex items-start">
+                    <CheckCircle2 className="w-4 h-4 text-blue-500 mr-2 mt-0.5 flex-shrink-0" />
+                    <span>CSV or Excel upload</span>
+                  </li>
+                  <li className="flex items-start">
+                    <CheckCircle2 className="w-4 h-4 text-blue-500 mr-2 mt-0.5 flex-shrink-0" />
+                    <span>Template provided</span>
+                  </li>
+                  <li className="flex items-start">
+                    <CheckCircle2 className="w-4 h-4 text-blue-500 mr-2 mt-0.5 flex-shrink-0" />
+                    <span>Bulk export results</span>
+                  </li>
+                </ul>
+                <Button className="w-full mt-6 bg-blue-500 hover:bg-blue-600">
+                  Start Batch Assessment
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Info Box */}
+          <Card className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+            <CardContent className="p-6">
+              <div className="flex items-start">
+                <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0 mr-4">
+                  <span className="text-white font-bold">💡</span>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">Not sure which to choose?</h3>
+                  <p className="text-sm text-blue-800 dark:text-blue-200">
+                    <strong>Single Assessment</strong> is ideal for detailed product analysis with full data entry.
+                    <br />
+                    <strong>Batch Processing</strong> is perfect when you have multiple products with similar data structures, like a product catalog or inventory.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     );

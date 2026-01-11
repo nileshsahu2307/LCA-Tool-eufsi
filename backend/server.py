@@ -3678,8 +3678,9 @@ class BatchValidationRequest(BaseModel):
 @api_router.post("/batch/parse-csv")
 async def parse_and_validate_csv(file: UploadFile = File(...), industry: str = "textile"):
     """
-    Parse uploaded CSV and validate against TEXTILE schema only.
+    Parse uploaded CSV or Excel file and validate against TEXTILE schema only.
     Batch processing is exclusively available for textile assessments.
+    Accepts: .csv, .xlsx, .xls files
     Returns validated products with error/warning messages.
     """
     # Batch processing is only available for textile industry
@@ -3695,11 +3696,28 @@ async def parse_and_validate_csv(file: UploadFile = File(...), industry: str = "
     schema = INDUSTRY_SCHEMAS[industry]
 
     try:
-        # Read CSV file
+        # Read file content
         content = await file.read()
-        df = pd.read_csv(io.BytesIO(content))
+
+        # Determine file type and read accordingly
+        filename = file.filename.lower()
+
+        if filename.endswith('.csv'):
+            # Read CSV file
+            df = pd.read_csv(io.BytesIO(content))
+        elif filename.endswith('.xlsx') or filename.endswith('.xls'):
+            # Read Excel file (automatically converts to DataFrame)
+            df = pd.read_excel(io.BytesIO(content), engine='openpyxl' if filename.endswith('.xlsx') else 'xlrd')
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail="Unsupported file format. Please upload a CSV (.csv) or Excel (.xlsx, .xls) file."
+            )
+
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Cannot read CSV file: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Cannot read file: {str(e)}")
 
     # Validate structure
     required_columns = get_required_columns(schema)
