@@ -1481,25 +1481,51 @@ class Brightway2Engine:
         return exchanges
     
     def calculate_lca(self, project: LCAProject, input_data: Dict) -> Dict[str, Any]:
-        """Perform real LCA calculation using Brightway2"""
+        """
+        Perform real LCA calculation using Brightway2 with comprehensive logging and missing data tracking.
+
+        UPDATED: Now tracks:
+        - Brightway2 status per category (success/failed/estimation)
+        - Missing activities and fallbacks used
+        - Calculation warnings
+        - Data completeness percentage
+        """
         self.initialize()
-        
+
+        # Initialize missing data tracking
+        self._missing_activities = []
+        self._calculation_warnings = []
+        self._brightway2_status = {}
+
         # Setup the database
         self.setup_database(project.database)
-        
+
         # Create product system
         product_system = self.create_product_system(project, input_data)
-        
+
         results = {
             'impact_categories': {},
             'contribution_by_stage': {},
             'total_impacts': {},
-            'method': project.method
+            'method': project.method,
+            # NEW: Calculation metadata for transparency
+            'calculation_metadata': {
+                'brightway2_status': {},
+                'missing_activities': [],
+                'calculation_warnings': [],
+                'data_completeness': 100.0,
+                'calculation_mode': 'brightway2'  # or 'estimation' or 'hybrid'
+            }
         }
-        
+
         # Get impact categories for selected method
         method_categories = self.IMPACT_CATEGORIES.get(project.method, self.IMPACT_CATEGORIES['ReCiPe'])
-        
+
+        # Track calculation modes
+        brightway_success_count = 0
+        brightway_failed_count = 0
+        estimation_count = 0
+
         # Calculate impacts for each category
         for cat_key, cat_info in method_categories.items():
             try:
@@ -1507,12 +1533,12 @@ class Brightway2Engine:
                 method_tuple = self._find_method(cat_info[0], cat_info[1])
 
                 if method_tuple:
-                    logger.info(f"Found method for {cat_key}: {method_tuple}")
+                    logger.info(f"✓ Found Brightway2 method for {cat_key}: {method_tuple}")
 
                     # Get the activity using the correct tuple key
                     db = Database(product_system['database'])
                     activity = db.get(product_system['activity_key'])
-                    logger.info(f"Retrieved activity: {activity['name']} from database {product_system['database']}")
+                    logger.info(f"✓ Retrieved activity: {activity['name']} from database {product_system['database']}")
 
                     # Perform LCA calculation
                     lca = bc.LCA({activity: 1}, method_tuple)
@@ -1520,7 +1546,7 @@ class Brightway2Engine:
                     lca.lcia()
 
                     impact_value = float(lca.score)
-                    logger.info(f"Brightway2 calculation SUCCESS for {cat_key}: {impact_value} {cat_info[3]}")
+                    logger.info(f"✓ Brightway2 calculation SUCCESS for {cat_key}: {impact_value} {cat_info[3]}")
 
                     results['impact_categories'][cat_key] = {
                         'value': impact_value,
@@ -1533,8 +1559,19 @@ class Brightway2Engine:
                     results['contribution_by_stage'][cat_key] = self._calculate_contributions(
                         lca, input_data, project
                     )
+
+                    # Track success
+                    self._brightway2_status[cat_key] = 'success'
+                    brightway_success_count += 1
+
                 else:
-                    logger.warning(f"No Brightway2 method found for {cat_key} - using estimation")
+                    logger.warning(f"⚠ No Brightway2 method found for {cat_key} - using estimation")
+                    self._calculation_warnings.append({
+                        'category': cat_key,
+                        'warning': 'Brightway2 method not found',
+                        'action': 'Using estimation model'
+                    })
+
                     # Use calculated estimates based on input data
                     estimated_value = self._estimate_impact(cat_key, input_data, project)
                     results['impact_categories'][cat_key] = {
@@ -1547,10 +1584,23 @@ class Brightway2Engine:
                         cat_key, input_data, project
                     )
 
+                    # Track estimation
+                    self._brightway2_status[cat_key] = 'method_not_found'
+                    estimation_count += 1
+
             except Exception as e:
                 import traceback
-                logger.error(f"Error calculating {cat_key}: {str(e)}")
+                error_msg = str(e)
+                logger.error(f"✗ Error calculating {cat_key}: {error_msg}")
                 logger.error(f"Traceback: {traceback.format_exc()}")
+
+                self._calculation_warnings.append({
+                    'category': cat_key,
+                    'warning': 'Brightway2 calculation failed',
+                    'error': error_msg,
+                    'action': 'Using estimation model'
+                })
+
                 # Fall back to estimation
                 estimated_value = self._estimate_impact(cat_key, input_data, project)
                 results['impact_categories'][cat_key] = {
@@ -1562,13 +1612,48 @@ class Brightway2Engine:
                 results['contribution_by_stage'][cat_key] = self._estimate_contributions(
                     cat_key, input_data, project
                 )
-        
+
+                # Track failure
+                self._brightway2_status[cat_key] = f'failed: {error_msg}'
+                brightway_failed_count += 1
+
         # Calculate total weighted impact
         results['total_impacts'] = {
             'climate_change': results['impact_categories'].get('climate_change', {}).get('value', 0),
             'water_use': results['impact_categories'].get('water_depletion', results['impact_categories'].get('water_use', {})).get('value', 0),
         }
-        
+
+        # Populate calculation metadata
+        results['calculation_metadata']['brightway2_status'] = self._brightway2_status
+        results['calculation_metadata']['missing_activities'] = self._missing_activities
+        results['calculation_metadata']['calculation_warnings'] = self._calculation_warnings
+
+        # Determine overall calculation mode
+        total_categories = len(method_categories)
+        if brightway_success_count == total_categories:
+            results['calculation_metadata']['calculation_mode'] = 'brightway2'
+            results['calculation_metadata']['data_completeness'] = 100.0
+        elif brightway_success_count == 0:
+            results['calculation_metadata']['calculation_mode'] = 'estimation'
+            results['calculation_metadata']['data_completeness'] = 0.0
+        else:
+            results['calculation_metadata']['calculation_mode'] = 'hybrid'
+            results['calculation_metadata']['data_completeness'] = round((brightway_success_count / total_categories) * 100, 1)
+
+        # Log summary
+        logger.info(f"═══════════════════════════════════════════════════════")
+        logger.info(f"LCA Calculation Complete for {project.industry} - {project.name}")
+        logger.info(f"Calculation Mode: {results['calculation_metadata']['calculation_mode']}")
+        logger.info(f"Brightway2 Success: {brightway_success_count}/{total_categories} categories")
+        logger.info(f"Brightway2 Failed: {brightway_failed_count}/{total_categories} categories")
+        logger.info(f"Estimation Used: {estimation_count}/{total_categories} categories")
+        logger.info(f"Data Completeness: {results['calculation_metadata']['data_completeness']}%")
+        if self._missing_activities:
+            logger.info(f"Missing Activities: {len(self._missing_activities)}")
+        if self._calculation_warnings:
+            logger.warning(f"Warnings: {len(self._calculation_warnings)}")
+        logger.info(f"═══════════════════════════════════════════════════════")
+
         return results
     
     def _find_method(self, method_family: str, category: str) -> Optional[tuple]:
