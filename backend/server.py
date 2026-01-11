@@ -1613,86 +1613,343 @@ class Brightway2Engine:
         """
         Map life-cycle stages to Brightway2 activity keys (database, activity_code).
 
-        This reuses the same coding logic as the _build_*_exchanges methods,
-        so stage contributions follow what was actually modeled.
+        UPDATED: Now matches ALL frontend schemas exactly (11 sections for Textile, 10 for bAwear, etc.)
+        This ensures stage names in results match what users see in the assessment forms.
         """
         base_db = project.database
         stages: Dict[str, List[tuple]] = {}
 
         if project.industry == "textile":
-            # NEW SIMPLIFIED TEXTILE SCHEMA (4 steps)
-            # Sections: raw_materials, textile_processing, confection, logistics
+            # NEW 11-SECTION TEXTILE SCHEMA (matches TEXTILE_SCHEMA lines 2272-2457)
+            # Sections: fiber_composition, yarn_production, fabric_construction, wet_processing,
+            #           manufacturing, packaging, waste_management, logistics, use_phase, end_of_life
             stages = {
-                "raw_materials": [],
-                "textile_processing": [],
-                "confection": [],
+                "fiber_composition": [],
+                "yarn_production": [],
+                "fabric_construction": [],
+                "wet_processing": [],
+                "manufacturing": [],
+                "packaging": [],
+                "waste_management": [],
                 "logistics": [],
             }
+            if project.scope in ["cradle-to-grave", "both"]:
+                stages["use_phase"] = []
+                stages["end_of_life"] = []
 
-            # 1. Raw materials
-            if 'raw_materials' in input_data:
-                raw_materials = input_data['raw_materials']
-                if isinstance(raw_materials, list):
-                    for item in raw_materials:
-                        fiber_type = item.get('fiber_type', '')
-                        fiber_code = self._normalize_activity_code(fiber_type)
-                        if fiber_code:
-                            stages["raw_materials"].append((base_db, fiber_code))
+            # 1. Fiber composition
+            for fiber in input_data.get('fiber_composition', []):
+                fiber_type = fiber.get('fiber_type', '')
+                fiber_code = self._normalize_activity_code(fiber_type)
+                if fiber_code:
+                    stages["fiber_composition"].append((base_db, fiber_code))
 
-            # 2. Textile processing (spinning + dyeing)
-            if 'textile_processing' in input_data:
-                processing = input_data['textile_processing']
-                spinning_tech = processing.get('spinning_technology', '')
+            # 2. Yarn production (spinning)
+            yarn_data = input_data.get('yarn_production', {})
+            if yarn_data:
+                spinning_tech = yarn_data.get('spinning_technology', '')
                 if spinning_tech:
                     spinning_code = self._normalize_activity_code(spinning_tech)
                     if spinning_code:
-                        stages["textile_processing"].append((base_db, spinning_code))
+                        stages["yarn_production"].append((base_db, spinning_code))
+                if yarn_data.get('spinning_electricity_kwh', 0) > 0:
+                    stages["yarn_production"].append((base_db, 'electricity'))
 
-                dyeing_type = processing.get('dyeing_process_type', '')
+            # 3. Fabric construction (knitting/weaving)
+            fabric_data = input_data.get('fabric_construction', {})
+            if fabric_data:
+                construction = fabric_data.get('construction_method', '')
+                if construction:
+                    construction_code = self._normalize_activity_code(construction)
+                    if construction_code:
+                        stages["fabric_construction"].append((base_db, construction_code))
+                if fabric_data.get('construction_electricity_kwh', 0) > 0:
+                    stages["fabric_construction"].append((base_db, 'electricity'))
+
+            # 4. Wet processing (dyeing, printing, finishing)
+            wet_data = input_data.get('wet_processing', {})
+            if wet_data:
+                dyeing_type = wet_data.get('dyeing_process_type', '')
                 if dyeing_type and dyeing_type != 'No Dyeing':
                     dyeing_code = self._normalize_activity_code(dyeing_type)
                     if dyeing_code:
-                        stages["textile_processing"].append((base_db, dyeing_code))
+                        stages["wet_processing"].append((base_db, dyeing_code))
 
-                # Energy activities
-                if processing.get('spinning_electricity_kwh', 0) > 0:
-                    stages["textile_processing"].append((base_db, 'electricity'))
-                if processing.get('energy_consumption_mj', 0) > 0:
-                    stages["textile_processing"].append((base_db, 'steam'))
-                if processing.get('water_consumption_l', 0) > 0:
-                    stages["textile_processing"].append((base_db, 'water'))
+                printing = wet_data.get('printing_method', '')
+                if printing and printing != 'None':
+                    print_code = self._normalize_activity_code(printing)
+                    if print_code:
+                        stages["wet_processing"].append((base_db, print_code))
 
-            # 3. Confection (waste and packaging)
-            if 'confection' in input_data:
-                confection = input_data['confection']
-                if confection.get('fabric_waste_rate', 0) > 0:
-                    stages["confection"].append((base_db, 'landfill'))
-                if confection.get('packaging_weight_kg', 0) > 0:
-                    stages["confection"].append((base_db, 'polyester_fiber_global'))
+                finishing = wet_data.get('finishing_method', '')
+                if finishing and finishing != 'None':
+                    finish_code = self._normalize_activity_code(finishing)
+                    if finish_code:
+                        stages["wet_processing"].append((base_db, finish_code))
 
-            # 4. Logistics
-            if 'logistics' in input_data:
-                logistics = input_data['logistics']
-                if isinstance(logistics, list):
-                    for leg in logistics:
-                        transport_mode = leg.get('transport_mode', '')
-                        if 'Sea Freight' in transport_mode or 'Container' in transport_mode:
-                            stages["logistics"].append((base_db, 'container_ship'))
-                        elif 'Air' in transport_mode:
-                            stages["logistics"].append((base_db, 'aircraft'))
-                        elif 'Rail' in transport_mode:
-                            stages["logistics"].append((base_db, 'train'))
-                        else:
-                            stages["logistics"].append((base_db, 'truck'))
+                # Energy and water
+                if wet_data.get('water_consumption_l', 0) > 0:
+                    stages["wet_processing"].append((base_db, 'water'))
+                if wet_data.get('thermal_energy_mj', 0) > 0:
+                    stages["wet_processing"].append((base_db, 'steam'))
+                if wet_data.get('electricity_kwh', 0) > 0:
+                    stages["wet_processing"].append((base_db, 'electricity'))
+
+            # 5. Manufacturing (CMT)
+            mfg_data = input_data.get('manufacturing', {})
+            if mfg_data:
+                if mfg_data.get('sewing_electricity_kwh', 0) > 0:
+                    stages["manufacturing"].append((base_db, 'electricity'))
+
+                finish_1 = mfg_data.get('finish_treatment_1', '')
+                if finish_1 and finish_1 != 'None':
+                    stages["manufacturing"].append((base_db, self._normalize_activity_code(finish_1)))
+
+                finish_2 = mfg_data.get('finish_treatment_2', '')
+                if finish_2 and finish_2 != 'None':
+                    stages["manufacturing"].append((base_db, self._normalize_activity_code(finish_2)))
+
+            # 6. Packaging
+            pkg_data = input_data.get('packaging', {})
+            if pkg_data:
+                primary_weight = pkg_data.get('primary_packaging_weight_g', 0)
+                if primary_weight > 0:
+                    pkg_type = pkg_data.get('primary_packaging_type', '')
+                    stages["packaging"].append((base_db, self._normalize_activity_code(pkg_type) or 'ldpe'))
+
+            # 7. Waste management
+            waste_data = input_data.get('waste_management', {})
+            if waste_data:
+                if waste_data.get('waste_recycled', 0) > 0:
+                    stages["waste_management"].append((base_db, 'recycling'))
+                if waste_data.get('waste_incinerated', 0) > 0:
+                    stages["waste_management"].append((base_db, 'incineration'))
+                if waste_data.get('waste_landfilled', 0) > 0:
+                    stages["waste_management"].append((base_db, 'landfill'))
+
+            # 8. Logistics
+            for leg in input_data.get('logistics', []):
+                transport_mode = leg.get('transport_mode', '')
+                if 'Sea Freight' in transport_mode or 'Container' in transport_mode:
+                    stages["logistics"].append((base_db, 'container_ship'))
+                elif 'Air' in transport_mode:
+                    stages["logistics"].append((base_db, 'aircraft'))
+                elif 'Rail' in transport_mode:
+                    stages["logistics"].append((base_db, 'train'))
+                else:
+                    stages["logistics"].append((base_db, 'truck'))
+
+            # 9. Use phase (optional)
+            if project.scope in ["cradle-to-grave", "both"]:
+                use_data = input_data.get("use_phase", {})
+                if use_data.get("include_use_phase", False):
+                    stages["use_phase"].append((base_db, "water"))
+                    stages["use_phase"].append((base_db, "electricity"))
+
+            # 10. End of life (optional)
+            if project.scope in ["cradle-to-grave", "both"]:
+                eol_data = input_data.get("end_of_life", {})
+                if eol_data.get("include_end_of_life", False):
+                    if eol_data.get("recycled_percentage", 0) > 0:
+                        stages["end_of_life"].append((base_db, "recycling"))
+                    if eol_data.get("incinerated_percentage", 0) > 0:
+                        stages["end_of_life"].append((base_db, "incineration"))
+                    if eol_data.get("landfill_percentage", 0) > 0:
+                        stages["end_of_life"].append((base_db, "landfill"))
 
         elif project.industry == "bawear":
-            # ORIGINAL DETAILED BAWEAR SCHEMA (10 steps)
-            # Sections: yarns, fabrics, manufacturing, transport, use_phase, end_of_life
+            # DETAILED BAWEAR SCHEMA (10 sections - matches BAWEAR_SCHEMA lines 2459-2636)
+            # Sections: product, fibers, yarns, fabrics, manufacturing, production_locations, transport, use_phase, end_of_life
             stages = {
-                "raw_materials": [],
-                "yarn_production": [],
-                "fabric_production": [],
-                "dyeing_finishing": [],
+                "fibers": [],
+                "yarns": [],
+                "fabrics": [],
+                "manufacturing": [],
+                "production_locations": [],
+                "transport": [],
+            }
+            if project.scope in ["cradle-to-grave", "both"]:
+                stages["use_phase"] = []
+                stages["end_of_life"] = []
+
+            # 1. Fibers
+            for fiber in input_data.get("fibers", []):
+                mat = fiber.get("material", "")
+                fiber_code = self._normalize_activity_code(mat)
+                if fiber_code:
+                    stages["fibers"].append((base_db, fiber_code))
+
+            # 2. Yarns (spinning)
+            for yarn in input_data.get("yarns", []):
+                spinning_method = yarn.get("spinning_method", "Ring spinning")
+                spinning_code = self._normalize_activity_code(spinning_method)
+                if spinning_code:
+                    stages["yarns"].append((base_db, spinning_code))
+
+            # 3. Fabrics (construction + dyeing/finishing)
+            for fabric in input_data.get("fabrics", []):
+                construction = fabric.get("construction_method", "Weaving")
+                construction_code = self._normalize_activity_code(construction)
+                if construction_code:
+                    stages["fabrics"].append((base_db, construction_code))
+
+                coloring = fabric.get("coloring_method", "")
+                if coloring and coloring != "No dyeing/printing":
+                    coloring_code = self._normalize_activity_code(coloring)
+                    if coloring_code:
+                        stages["fabrics"].append((base_db, coloring_code))
+
+                finishing = fabric.get("finishing_method", "")
+                if finishing:
+                    finish_code = self._normalize_activity_code(finishing)
+                    if finish_code:
+                        stages["fabrics"].append((base_db, finish_code))
+
+            # 4. Manufacturing (waste management)
+            mfg = input_data.get("manufacturing", {})
+            if mfg:
+                if mfg.get("waste_recycled_percentage", 0) > 0:
+                    stages["manufacturing"].append((base_db, "recycling"))
+                if mfg.get("waste_incinerated_percentage", 0) > 0:
+                    stages["manufacturing"].append((base_db, "incineration"))
+                if mfg.get("waste_landfilled_percentage", 0) > 0:
+                    stages["manufacturing"].append((base_db, "landfill"))
+
+            # 5. Production locations (energy usage)
+            prod_locs = input_data.get("production_locations", {})
+            if prod_locs:
+                stages["production_locations"].append((base_db, "electricity"))
+
+            # 6. Transport
+            transport = input_data.get("transport", {})
+            if transport:
+                mode1 = transport.get("transport_1_mode", "")
+                if mode1:
+                    stages["transport"].append((base_db, self._normalize_activity_code(mode1) or "truck"))
+                mode2 = transport.get("transport_2_mode", "")
+                if mode2 and mode2 != "None":
+                    stages["transport"].append((base_db, self._normalize_activity_code(mode2) or "truck"))
+                mode3 = transport.get("transport_3_mode", "")
+                if mode3 and mode3 != "None":
+                    stages["transport"].append((base_db, self._normalize_activity_code(mode3) or "truck"))
+
+            # 7. Use phase (optional)
+            if project.scope in ["cradle-to-grave", "both"]:
+                use = input_data.get("use_phase", {})
+                if use.get("include", False):
+                    stages["use_phase"].append((base_db, "water"))
+                    stages["use_phase"].append((base_db, "electricity"))
+
+            # 8. End of life (optional)
+            if project.scope in ["cradle-to-grave", "both"]:
+                eol = input_data.get("end_of_life", {})
+                if eol.get("include", False):
+                    if eol.get("recycled_percentage", 0) > 0:
+                        stages["end_of_life"].append((base_db, "recycling"))
+                    if eol.get("incinerated_percentage", 0) > 0:
+                        stages["end_of_life"].append((base_db, "incineration"))
+                    if eol.get("landfill_percentage", 0) > 0:
+                        stages["end_of_life"].append((base_db, "landfill"))
+
+        elif project.industry == "water":
+            # WATER SCHEMA (5 sections - matches WATER_SCHEMA lines 2638-2707)
+            # Sections: extraction, treatment, bottling_packaging, logistics, end_of_life
+            stages = {
+                "extraction": [],
+                "treatment": [],
+                "bottling_packaging": [],
+                "logistics": [],
+                "end_of_life": [],
+            }
+
+            # 1. Extraction
+            extraction = input_data.get("extraction", {})
+            if extraction:
+                if extraction.get("pumping_energy_kwh", 0) > 0:
+                    stages["extraction"].append((base_db, "electricity"))
+
+            # 2. Treatment
+            treatment = input_data.get("treatment", {})
+            if treatment:
+                if treatment.get("process_energy_kwh", 0) > 0:
+                    stages["treatment"].append((base_db, "electricity"))
+                filt_tech = treatment.get("filtration_tech", "")
+                if filt_tech:
+                    stages["treatment"].append((base_db, self._normalize_activity_code(filt_tech)))
+
+            # 3. Bottling & Packaging
+            bottling = input_data.get("bottling_packaging", {})
+            if bottling:
+                bottle_mat = bottling.get("bottle_material", "")
+                if bottle_mat:
+                    stages["bottling_packaging"].append((base_db, self._normalize_activity_code(bottle_mat) or "pet"))
+                cap_mat = bottling.get("cap_material", "")
+                if cap_mat:
+                    stages["bottling_packaging"].append((base_db, self._normalize_activity_code(cap_mat) or "hdpe"))
+
+            # 4. Logistics
+            logistics = input_data.get("logistics", {})
+            if logistics:
+                mode = logistics.get("transport_mode", "")
+                if mode:
+                    stages["logistics"].append((base_db, self._normalize_activity_code(mode) or "truck"))
+
+            # 5. End of life
+            eol = input_data.get("end_of_life", {})
+            if eol:
+                if eol.get("return_rate", 0) > 0:
+                    stages["end_of_life"].append((base_db, "recycling"))
+
+        elif project.industry == "food":
+            # FOOD SCHEMA (5 sections - matches FOOD_SCHEMA lines 2709-2781)
+            # Sections: agriculture, processing, packaging, logistics, consumer_eol
+            stages = {
+                "agriculture": [],
+                "processing": [],
+                "packaging": [],
+                "logistics": [],
+                "consumer_eol": [],
+            }
+
+            # 1. Agriculture (ingredients)
+            for ingredient in input_data.get("agriculture", []):
+                stages["agriculture"].append((base_db, "agriculture"))
+
+            # 2. Processing
+            processing = input_data.get("processing", {})
+            if processing:
+                if processing.get("electricity_kwh", 0) > 0:
+                    stages["processing"].append((base_db, "electricity"))
+                if processing.get("natural_gas_mj", 0) > 0:
+                    stages["processing"].append((base_db, "natural_gas"))
+
+            # 3. Packaging
+            packaging = input_data.get("packaging", {})
+            if packaging:
+                primary = packaging.get("primary_material", "")
+                if primary:
+                    stages["packaging"].append((base_db, self._normalize_activity_code(primary)))
+
+            # 4. Logistics
+            logistics = input_data.get("logistics", {})
+            if logistics:
+                storage = logistics.get("storage_class", "")
+                if storage:
+                    stages["logistics"].append((base_db, "cold_storage" if "Frozen" in storage or "Chilled" in storage else "transport"))
+
+            # 5. Consumer & EOL
+            consumer = input_data.get("consumer_eol", {})
+            if consumer:
+                cooking = consumer.get("cooking_method", "")
+                if cooking and cooking != "No Cooking Required":
+                    stages["consumer_eol"].append((base_db, "cooking"))
+
+        elif project.industry == "footwear":
+            # FOOTWEAR SCHEMA (7 sections - matches FOOTWEAR_SCHEMA lines 2783-2868)
+            # Sections: product, upper_materials, sole_materials, manufacturing, transport, use_phase, end_of_life
+            stages = {
+                "upper_materials": [],
+                "sole_materials": [],
                 "manufacturing": [],
                 "transport": [],
             }
@@ -1700,132 +1957,182 @@ class Brightway2Engine:
                 stages["use_phase"] = []
                 stages["end_of_life"] = []
 
-            # Raw materials & spinning
-            for yarn in input_data.get("yarns", []):
-                yarn_pct = yarn.get("percentage", 0)
-                if "fibers" in yarn:
-                    for fiber in yarn["fibers"]:
-                        mat = fiber.get("material", "")
-                        fiber_code = self._normalize_activity_code(mat)
-                        if fiber_code:
-                            stages["raw_materials"].append((base_db, fiber_code))
+            # 1. Upper materials
+            for mat in input_data.get("upper_materials", []):
+                mat_type = mat.get("type", "")
+                mat_code = self._normalize_activity_code(mat_type)
+                if mat_code:
+                    stages["upper_materials"].append((base_db, mat_code))
 
-                spinning_method = yarn.get("spinning_method", "Ring spinning")
-                spinning_code = self._normalize_activity_code(spinning_method)
-                if spinning_code:
-                    stages["yarn_production"].append((base_db, spinning_code))
+            # 2. Sole materials
+            for mat in input_data.get("sole_materials", []):
+                mat_type = mat.get("type", "")
+                mat_code = self._normalize_activity_code(mat_type)
+                if mat_code:
+                    stages["sole_materials"].append((base_db, mat_code))
 
-            # Fabric + dyeing/printing
-            for fabric in input_data.get("fabrics", []):
-                construction = fabric.get("construction_method", "Weaving")
-                construction_code = self._normalize_activity_code(construction)
-                if construction_code:
-                    stages["fabric_production"].append((base_db, construction_code))
+            # 3. Manufacturing
+            mfg = input_data.get("manufacturing", {})
+            if mfg:
+                stages["manufacturing"].append((base_db, "manufacturing"))
 
-                coloring = fabric.get("coloring_method", "")
-                if coloring and coloring != "No dyeing/printing":
-                    coloring_code = self._normalize_activity_code(coloring)
-                    if coloring_code:
-                        stages["dyeing_finishing"].append((base_db, coloring_code))
-
-            # Manufacturing waste (recycling/incineration/landfill)
-            if "manufacturing" in input_data:
-                mfg = input_data["manufacturing"]
-                # The exchanges use literal codes 'recycling', 'incineration', 'landfill'
-                if mfg.get("waste_recycled_percentage", 0) > 0:
-                    stages.setdefault("manufacturing", []).append((base_db, "recycling"))
-                if mfg.get("waste_incinerated_percentage", 0) > 0:
-                    stages.setdefault("manufacturing", []).append((base_db, "incineration"))
-                if mfg.get("waste_landfilled_percentage", 0) > 0:
-                    stages.setdefault("manufacturing", []).append((base_db, "landfill"))
-
-            # Transport
+            # 4. Transport
             transport = input_data.get("transport", {})
-            for leg in transport.get("legs", []):
-                mode = leg.get("mode", "Truck")
-                mode_code = mode.lower().replace(" ", "_")
-                stages["transport"].append((base_db, mode_code))
+            if transport:
+                mode = transport.get("primary_mode", "")
+                if mode:
+                    stages["transport"].append((base_db, self._normalize_activity_code(mode) or "truck"))
 
-            # Use phase
+            # 5. Use phase (optional)
             if project.scope in ["cradle-to-grave", "both"]:
                 use = input_data.get("use_phase", {})
                 if use.get("include", False):
-                    # In exchanges: 'water' and 'electricity'
-                    stages["use_phase"].append((base_db, "water"))
-                    stages["use_phase"].append((base_db, "electricity"))
+                    stages["use_phase"].append((base_db, "use"))
 
-            # End of life
+            # 6. End of life (optional)
             if project.scope in ["cradle-to-grave", "both"]:
                 eol = input_data.get("end_of_life", {})
-                if eol.get("recycled_percentage", 0) > 0:
-                    stages["end_of_life"].append((base_db, "recycling"))
-                if eol.get("incinerated_percentage", 0) > 0:
-                    stages["end_of_life"].append((base_db, "incineration"))
-                if eol.get("landfill_percentage", 0) > 0:
-                    stages["end_of_life"].append((base_db, "landfill"))
-
-        elif project.industry == "footwear":
-            stages = {
-                "raw_materials": [],
-                "component_production": [],
-                "assembly": [],
-                "transport": [],
-            }
-            if project.scope in ["cradle-to-grave", "both"]:
-                stages["use_phase"] = []
-                stages["end_of_life"] = []
-
-            for mat in input_data.get("upper_materials", []):
-                mat_code = mat.get("type", "").lower().replace(" ", "_")
-                if mat_code:
-                    stages["raw_materials"].append((base_db, mat_code))
-            for mat in input_data.get("sole_materials", []):
-                mat_code = mat.get("type", "").lower().replace(" ", "_")
-                if mat_code:
-                    stages["component_production"].append((base_db, mat_code))
-
-            # You can extend with manufacturing, transport, etc., similar to textile.
+                if eol.get("include", False):
+                    if eol.get("recycled", 0) > 0:
+                        stages["end_of_life"].append((base_db, "recycling"))
+                    if eol.get("incinerated", 0) > 0:
+                        stages["end_of_life"].append((base_db, "incineration"))
+                    if eol.get("landfill", 0) > 0:
+                        stages["end_of_life"].append((base_db, "landfill"))
 
         elif project.industry == "construction":
+            # CONSTRUCTION SCHEMA (7 sections - matches CONSTRUCTION_SCHEMA lines 2870-2950)
+            # Sections: product, main_material, additives, manufacturing, transport, use_phase, end_of_life
             stages = {
-                "raw_materials": [],
-                "processing": [],
+                "main_material": [],
+                "additives": [],
+                "manufacturing": [],
                 "transport": [],
-                "installation": [],
             }
             if project.scope in ["cradle-to-grave", "both"]:
                 stages["use_phase"] = []
                 stages["end_of_life"] = []
 
+            # 1. Main material
             main = input_data.get("main_material", {})
-            mat_code = main.get("type", "").lower().replace(" ", "_")
-            if mat_code:
-                stages["raw_materials"].append((base_db, mat_code))
+            if main:
+                mat_type = main.get("type", "")
+                mat_code = self._normalize_activity_code(mat_type)
+                if mat_code:
+                    stages["main_material"].append((base_db, mat_code))
 
-            # Transport etc. can be wired similarly.
+            # 2. Additives
+            for additive in input_data.get("additives", []):
+                add_type = additive.get("type", "")
+                if add_type:
+                    stages["additives"].append((base_db, self._normalize_activity_code(add_type)))
 
-        else:  # battery
+            # 3. Manufacturing
+            mfg = input_data.get("manufacturing", {})
+            if mfg:
+                energy = mfg.get("energy_source", "")
+                if energy:
+                    stages["manufacturing"].append((base_db, self._normalize_activity_code(energy) or "electricity"))
+
+            # 4. Transport
+            transport = input_data.get("transport", {})
+            if transport:
+                mode = transport.get("mode", "")
+                if mode:
+                    stages["transport"].append((base_db, self._normalize_activity_code(mode) or "truck"))
+
+            # 5. Use phase (optional)
+            if project.scope in ["cradle-to-grave", "both"]:
+                use = input_data.get("use_phase", {})
+                if use.get("include", False):
+                    stages["use_phase"].append((base_db, "use"))
+
+            # 6. End of life (optional)
+            if project.scope in ["cradle-to-grave", "both"]:
+                eol = input_data.get("end_of_life", {})
+                if eol.get("include", False):
+                    if eol.get("recyclable", 0) > 0:
+                        stages["end_of_life"].append((base_db, "recycling"))
+                    if eol.get("landfill", 0) > 0:
+                        stages["end_of_life"].append((base_db, "landfill"))
+
+        elif project.industry == "battery":
+            # BATTERY SCHEMA (8 sections - matches BATTERY_SCHEMA lines 2952-3063)
+            # Sections: product, cathode, anode, electrolyte, separator, housing, manufacturing, transport, use_phase, end_of_life
             stages = {
-                "raw_materials": [],
-                "cell_production": [],
-                "pack_assembly": [],
+                "cathode": [],
+                "anode": [],
+                "electrolyte": [],
+                "separator": [],
+                "housing": [],
+                "manufacturing": [],
                 "transport": [],
             }
             if project.scope in ["cradle-to-grave", "both"]:
                 stages["use_phase"] = []
                 stages["end_of_life"] = []
 
+            # 1. Cathode
             cathode = input_data.get("cathode", {})
-            cat_code = cathode.get("chemistry", "nmc").lower().replace(" ", "_")
-            stages["raw_materials"].append((base_db, cat_code))
+            if cathode:
+                chem = cathode.get("chemistry", "")
+                if chem:
+                    stages["cathode"].append((base_db, self._normalize_activity_code(chem) or "nmc"))
 
+            # 2. Anode
             anode = input_data.get("anode", {})
-            an_code = anode.get("material", "graphite").lower().replace(" ", "_")
-            stages["raw_materials"].append((base_db, an_code))
+            if anode:
+                mat = anode.get("material", "")
+                if mat:
+                    stages["anode"].append((base_db, self._normalize_activity_code(mat) or "graphite"))
 
+            # 3. Electrolyte
             electrolyte = input_data.get("electrolyte", {})
             if electrolyte:
-                stages["raw_materials"].append((base_db, "electrolyte"))
+                stages["electrolyte"].append((base_db, "electrolyte"))
+
+            # 4. Separator
+            separator = input_data.get("separator", {})
+            if separator:
+                mat = separator.get("material", "")
+                if mat:
+                    stages["separator"].append((base_db, self._normalize_activity_code(mat)))
+
+            # 5. Housing
+            housing = input_data.get("housing", {})
+            if housing:
+                mat = housing.get("housing_material", "")
+                if mat:
+                    stages["housing"].append((base_db, self._normalize_activity_code(mat)))
+
+            # 6. Manufacturing
+            mfg = input_data.get("manufacturing", {})
+            if mfg:
+                stages["manufacturing"].append((base_db, "electricity"))
+
+            # 7. Transport
+            transport = input_data.get("transport", {})
+            if transport:
+                mode = transport.get("mode", "")
+                if mode:
+                    stages["transport"].append((base_db, self._normalize_activity_code(mode) or "truck"))
+
+            # 8. Use phase (optional)
+            if project.scope in ["cradle-to-grave", "both"]:
+                use = input_data.get("use_phase", {})
+                if use.get("include", False):
+                    stages["use_phase"].append((base_db, "electricity"))
+
+            # 9. End of life (optional)
+            if project.scope in ["cradle-to-grave", "both"]:
+                eol = input_data.get("end_of_life", {})
+                if eol.get("include", False):
+                    if eol.get("material_recovery", 0) > 0:
+                        stages["end_of_life"].append((base_db, "recycling"))
+
+        else:
+            # Unknown industry - return empty stages
+            logger.warning(f"Unknown industry: {project.industry}")
 
         # Remove empty stages to avoid clutter
         return {k: v for k, v in stages.items() if v}
@@ -2220,48 +2527,485 @@ class Brightway2Engine:
         return round(total_impact, 6)
     
     def _estimate_contributions(self, category: str, input_data: Dict, project: LCAProject) -> Dict[str, float]:
-        """Estimate contribution by stage"""
-        total = self._estimate_impact(category, input_data, project)
-        
+        """
+        Calculate DYNAMIC contribution by stage based on actual input data.
+
+        UPDATED: No longer uses fixed percentages! Calculates based on:
+        - Fiber weights and emission factors
+        - Energy consumption (kWh, MJ)
+        - Water usage (liters)
+        - Transport distances (km) and modes
+        - Chemical usage (kg)
+        - Packaging weights (grams)
+
+        Different products will have DIFFERENT distributions based on their actual data.
+        """
+        weight_kg = project.product_weight_grams / 1000
+        stage_impacts = {}
+
+        # Category-specific emission factors (simplified but realistic)
+        # kg CO2-eq per unit for different materials/processes
+        fiber_factors = {
+            'cotton': 5.9, 'polyester': 9.5, 'wool': 28.0, 'viscose': 8.0,
+            'lyocell': 3.5, 'modal': 4.0, 'nylon': 12.0, 'elastane': 15.0,
+            'acrylic': 11.0, 'linen': 3.0, 'hemp': 2.5, 'silk': 100.0,
+            'leather': 17.0, 'rubber': 3.0
+        }
+        electricity_factor = 0.5  # kg CO2-eq per kWh (grid average)
+        thermal_energy_factor = 0.05  # kg CO2-eq per MJ
+        water_factor = 0.001  # kg CO2-eq per L
+        chemical_factor = 2.0  # kg CO2-eq per kg chemical
+        transport_factors = {
+            'truck': 0.10, 'container_ship': 0.02, 'aircraft': 1.2, 'train': 0.03
+        }
+
+        # Dispatch to industry-specific calculation
         if project.industry == "textile":
-            base_contributions = {
-                'raw_materials': 0.35,
-                'yarn_production': 0.10,
-                'fabric_production': 0.15,
-                'dyeing_finishing': 0.15,
-                'manufacturing': 0.05,
-                'transport': 0.05,
-            }
+            stage_impacts = self._calc_textile_contributions(input_data, weight_kg, fiber_factors,
+                                                             electricity_factor, thermal_energy_factor,
+                                                             water_factor, chemical_factor, transport_factors)
+        elif project.industry == "bawear":
+            stage_impacts = self._calc_bawear_contributions(input_data, weight_kg, fiber_factors,
+                                                            electricity_factor, thermal_energy_factor,
+                                                            water_factor, chemical_factor, transport_factors)
+        elif project.industry == "water":
+            stage_impacts = self._calc_water_contributions(input_data, electricity_factor, transport_factors)
+        elif project.industry == "food":
+            stage_impacts = self._calc_food_contributions(input_data, electricity_factor, transport_factors)
         elif project.industry == "footwear":
-            base_contributions = {
-                'raw_materials': 0.40,
-                'component_production': 0.20,
-                'assembly': 0.10,
-                'transport': 0.10,
-            }
+            stage_impacts = self._calc_footwear_contributions(input_data, weight_kg, fiber_factors,
+                                                               electricity_factor, transport_factors)
         elif project.industry == "construction":
-            base_contributions = {
-                'raw_materials': 0.50,
-                'processing': 0.20,
-                'transport': 0.15,
-                'installation': 0.10,
-            }
-        else:  # battery
-            base_contributions = {
-                'raw_materials': 0.45,
-                'cell_production': 0.25,
-                'pack_assembly': 0.10,
-                'transport': 0.05,
-            }
-        
-        if project.scope in ['cradle-to-grave', 'both']:
-            base_contributions['use_phase'] = 0.10
-            base_contributions['end_of_life'] = 0.05
-        
-        # Normalize to sum to 1
-        total_pct = sum(base_contributions.values())
-        
-        return {k: round((v / total_pct) * total, 6) for k, v in base_contributions.items()}
+            stage_impacts = self._calc_construction_contributions(input_data, electricity_factor, transport_factors)
+        elif project.industry == "battery":
+            stage_impacts = self._calc_battery_contributions(input_data, electricity_factor, transport_factors)
+        else:
+            logger.warning(f"Unknown industry for dynamic contributions: {project.industry}")
+            return {}
+
+        return stage_impacts
+
+    def _calc_textile_contributions(self, input_data: Dict, weight_kg: float,
+                                    fiber_factors: Dict, elec_factor: float, thermal_factor: float,
+                                    water_factor: float, chem_factor: float, transport_factors: Dict) -> Dict[str, float]:
+        """Calculate dynamic contributions for NEW 11-section textile schema"""
+        impacts = {}
+
+        # 1. Fiber composition
+        fiber_impact = 0.0
+        for fiber in input_data.get('fiber_composition', []):
+            fiber_type = fiber.get('fiber_type', '').lower().split()[0]  # "Cotton (Organic)" -> "cotton"
+            weight_g = fiber.get('weight_grams', 0)
+            factor = fiber_factors.get(fiber_type, 5.0)  # default to cotton
+            fiber_impact += (weight_g / 1000) * factor
+        impacts['fiber_composition'] = fiber_impact
+
+        # 2. Yarn production
+        yarn_data = input_data.get('yarn_production', {})
+        yarn_impact = yarn_data.get('spinning_electricity_kwh', 0) * weight_kg * elec_factor
+        impacts['yarn_production'] = yarn_impact
+
+        # 3. Fabric construction
+        fabric_data = input_data.get('fabric_construction', {})
+        fabric_impact = fabric_data.get('construction_electricity_kwh', 0) * weight_kg * elec_factor
+        impacts['fabric_construction'] = fabric_impact
+
+        # 4. Wet processing (OFTEN THE HOTSPOT!)
+        wet_data = input_data.get('wet_processing', {})
+        wet_impact = 0.0
+        wet_impact += wet_data.get('water_consumption_l', 0) * weight_kg * water_factor
+        wet_impact += wet_data.get('thermal_energy_mj', 0) * weight_kg * thermal_factor
+        wet_impact += wet_data.get('electricity_kwh', 0) * weight_kg * elec_factor
+        wet_impact += wet_data.get('chemicals_kg', 0) * weight_kg * chem_factor
+        impacts['wet_processing'] = wet_impact
+
+        # 5. Manufacturing
+        mfg_data = input_data.get('manufacturing', {})
+        mfg_impact = mfg_data.get('sewing_electricity_kwh', 0) * elec_factor
+        impacts['manufacturing'] = mfg_impact
+
+        # 6. Packaging
+        pkg_data = input_data.get('packaging', {})
+        pkg_impact = (pkg_data.get('primary_packaging_weight_g', 0) / 1000) * fiber_factors.get('polyester', 9.5)
+        impacts['packaging'] = pkg_impact
+
+        # 7. Waste management
+        waste_data = input_data.get('waste_management', {})
+        waste_impact = 0.0
+        waste_pct_recycled = waste_data.get('waste_recycled', 0) / 100
+        waste_pct_incinerated = waste_data.get('waste_incinerated', 0) / 100
+        waste_pct_landfill = waste_data.get('waste_landfilled', 0) / 100
+        waste_impact = (waste_pct_recycled * -0.5 + waste_pct_incinerated * 2.0 + waste_pct_landfill * 0.1) * weight_kg
+        impacts['waste_management'] = max(0, waste_impact)  # don't allow negative
+
+        # 8. Logistics
+        logistics_impact = 0.0
+        for leg in input_data.get('logistics', []):
+            distance_km = leg.get('distance_km', 0)
+            mode = leg.get('transport_mode', 'Truck').lower()
+            factor = transport_factors.get('container_ship' if 'sea' in mode or 'container' in mode else
+                                          'aircraft' if 'air' in mode else
+                                          'train' if 'rail' in mode else 'truck', 0.10)
+            logistics_impact += distance_km * weight_kg * factor
+        impacts['logistics'] = logistics_impact
+
+        # 9. Use phase (optional)
+        use_data = input_data.get('use_phase', {})
+        if use_data.get('include_use_phase', False):
+            wash_cycles = use_data.get('lifetime_washing_cycles', 50)
+            use_impact = wash_cycles * 0.3  # kg CO2 per wash cycle
+            impacts['use_phase'] = use_impact
+
+        # 10. End of life (optional)
+        eol_data = input_data.get('end_of_life', {})
+        if eol_data.get('include_end_of_life', False):
+            eol_impact = 0.0
+            eol_impact += (eol_data.get('recycled_percentage', 0) / 100) * weight_kg * -0.5
+            eol_impact += (eol_data.get('incinerated_percentage', 0) / 100) * weight_kg * 2.0
+            eol_impact += (eol_data.get('landfill_percentage', 0) / 100) * weight_kg * 0.1
+            impacts['end_of_life'] = max(0, eol_impact)
+
+        return {k: round(v, 6) for k, v in impacts.items() if v > 0}
+
+    def _calc_bawear_contributions(self, input_data: Dict, weight_kg: float,
+                                   fiber_factors: Dict, elec_factor: float, thermal_factor: float,
+                                   water_factor: float, chem_factor: float, transport_factors: Dict) -> Dict[str, float]:
+        """Calculate dynamic contributions for bAwear schema"""
+        impacts = {}
+
+        # 1. Fibers
+        fiber_impact = 0.0
+        for fiber in input_data.get('fibers', []):
+            material = fiber.get('material', '').lower().split()[0]
+            percentage = fiber.get('percentage', 0) / 100
+            factor = fiber_factors.get(material, 5.0)
+            fiber_impact += weight_kg * percentage * factor
+        impacts['fibers'] = fiber_impact
+
+        # 2. Yarns (spinning)
+        yarn_impact = len(input_data.get('yarns', [])) * weight_kg * 0.5  # Simplified: 0.5 kg CO2/kg per yarn type
+        impacts['yarns'] = yarn_impact
+
+        # 3. Fabrics (construction + dyeing + finishing)
+        fabric_impact = 0.0
+        for fabric in input_data.get('fabrics', []):
+            percentage = fabric.get('percentage', 0) / 100
+            # Construction impact
+            fabric_impact += weight_kg * percentage * 0.6  # 0.6 kg CO2/kg for construction
+            # Dyeing impact
+            if fabric.get('coloring_method', '') not in ['No dyeing/printing', '']:
+                fabric_impact += weight_kg * percentage * 1.2  # 1.2 kg CO2/kg for dyeing
+            # Finishing impact
+            if fabric.get('finishing_method', ''):
+                fabric_impact += weight_kg * percentage * 0.4  # 0.4 kg CO2/kg for finishing
+        impacts['fabrics'] = fabric_impact
+
+        # 4. Manufacturing
+        mfg = input_data.get('manufacturing', {})
+        mfg_impact = 0.0
+        cutting_waste = mfg.get('cutting_waste_percentage', 0) / 100
+        mfg_impact += weight_kg * cutting_waste * 0.2  # waste impact
+        impacts['manufacturing'] = mfg_impact
+
+        # 5. Production locations (energy)
+        prod_locs = input_data.get('production_locations', {})
+        energy_impact = weight_kg * 2.0  # Simplified: 2.0 kg CO2/kg for all production energy
+        impacts['production_locations'] = energy_impact
+
+        # 6. Transport
+        transport_impact = 0.0
+        transport = input_data.get('transport', {})
+        for i in range(1, 4):
+            mode_key = f'transport_{i}_mode'
+            dist_key = f'transport_{i}_distance'
+            mode = transport.get(mode_key, '')
+            distance = transport.get(dist_key, 0)
+            if mode and mode != 'None' and distance > 0:
+                factor = transport_factors.get(mode.lower().replace(' ', '_'), 0.10)
+                transport_impact += distance * weight_kg * factor
+        impacts['transport'] = transport_impact
+
+        # 7. Use phase (optional)
+        use = input_data.get('use_phase', {})
+        if use.get('include', False):
+            wash_cycles = use.get('lifetime_washing_cycles', 50)
+            use_impact = wash_cycles * 0.3
+            impacts['use_phase'] = use_impact
+
+        # 8. End of life (optional)
+        eol = input_data.get('end_of_life', {})
+        if eol.get('include', False):
+            eol_impact = 0.0
+            eol_impact += (eol.get('recycled_percentage', 0) / 100) * weight_kg * -0.5
+            eol_impact += (eol.get('incinerated_percentage', 0) / 100) * weight_kg * 2.0
+            eol_impact += (eol.get('landfill_percentage', 0) / 100) * weight_kg * 0.1
+            impacts['end_of_life'] = max(0, eol_impact)
+
+        return {k: round(v, 6) for k, v in impacts.items() if v > 0}
+
+    def _calc_water_contributions(self, input_data: Dict, elec_factor: float, transport_factors: Dict) -> Dict[str, float]:
+        """Calculate dynamic contributions for water schema"""
+        impacts = {}
+
+        # 1. Extraction
+        extraction = input_data.get('extraction', {})
+        extraction_impact = extraction.get('pumping_energy_kwh', 0) * elec_factor
+        impacts['extraction'] = extraction_impact
+
+        # 2. Treatment
+        treatment = input_data.get('treatment', {})
+        treatment_impact = treatment.get('process_energy_kwh', 0) * elec_factor
+        impacts['treatment'] = treatment_impact
+
+        # 3. Bottling & Packaging (OFTEN THE HOTSPOT for water!)
+        bottling = input_data.get('bottling_packaging', {})
+        preform_weight_g = bottling.get('preform_weight_g', 0)
+        recycled_content = bottling.get('recycled_content', 0) / 100
+        # Virgin PET: 9.5 kg CO2/kg, Recycled PET: 2.1 kg CO2/kg
+        pet_factor = 9.5 * (1 - recycled_content) + 2.1 * recycled_content
+        bottle_impact = (preform_weight_g / 1000) * pet_factor
+        cap_impact = (bottling.get('cap_weight_g', 0) / 1000) * 3.0  # HDPE/PP factor
+        label_impact = (bottling.get('label_weight_g', 0) / 1000) * 5.0  # PP/Paper factor
+        impacts['bottling_packaging'] = bottle_impact + cap_impact + label_impact
+
+        # 4. Logistics
+        logistics = input_data.get('logistics', {})
+        distance = logistics.get('fill_to_distribution_km', 0)
+        mode = logistics.get('transport_mode', 'Truck').lower()
+        factor = transport_factors.get('truck' if 'truck' in mode else 'train' if 'rail' in mode else 'container_ship', 0.10)
+        # Water is HEAVY - 1L = 1kg
+        bottle_volume_l = 1.5  # Assume 1.5L bottle
+        logistics_impact = distance * bottle_volume_l * factor
+        impacts['logistics'] = logistics_impact
+
+        # 5. End of life
+        eol = input_data.get('end_of_life', {})
+        return_rate = eol.get('return_rate', 0) / 100
+        eol_impact = return_rate * (preform_weight_g / 1000) * -0.5  # Credit for recycling
+        impacts['end_of_life'] = max(0, eol_impact)
+
+        return {k: round(v, 6) for k, v in impacts.items() if v > 0}
+
+    def _calc_food_contributions(self, input_data: Dict, elec_factor: float, transport_factors: Dict) -> Dict[str, float]:
+        """Calculate dynamic contributions for food schema"""
+        impacts = {}
+
+        # 1. Agriculture (OFTEN 60-90% of food impact!)
+        agri_impact = 0.0
+        for ingredient in input_data.get('agriculture', []):
+            weight_kg = ingredient.get('weight_kg', 0)
+            # Simplified: agriculture impact varies hugely by ingredient type
+            # Real implementation would look up ingredient name in database
+            agri_impact += weight_kg * 5.0  # Average factor
+        impacts['agriculture'] = agri_impact
+
+        # 2. Processing
+        processing = input_data.get('processing', {})
+        proc_impact = 0.0
+        proc_impact += processing.get('electricity_kwh', 0) * elec_factor
+        proc_impact += processing.get('natural_gas_mj', 0) * 0.05  # MJ to kg CO2
+        impacts['processing'] = proc_impact
+
+        # 3. Packaging
+        packaging = input_data.get('packaging', {})
+        pkg_impact = (packaging.get('primary_weight_g', 0) / 1000) * 3.0  # Average packaging factor
+        impacts['packaging'] = pkg_impact
+
+        # 4. Logistics (cold chain is energy-intensive!)
+        logistics = input_data.get('logistics', {})
+        storage = logistics.get('storage_class', '')
+        distance = logistics.get('farm_to_factory_km', 0) + logistics.get('factory_to_retail_km', 0)
+        logistics_impact = distance * 0.5  # Simplified
+        if 'Frozen' in storage:
+            logistics_impact *= 3  # Frozen multiplies impact!
+        elif 'Chilled' in storage:
+            logistics_impact *= 2  # Chilled doubles impact
+        impacts['logistics'] = logistics_impact
+
+        # 5. Consumer & EOL
+        consumer = input_data.get('consumer_eol', {})
+        consumer_impact = 0.0
+        if consumer.get('cooking_method', '') not in ['No Cooking Required', '']:
+            consumer_impact += consumer.get('cooking_energy_mj', 0) * 0.05
+        impacts['consumer_eol'] = consumer_impact
+
+        return {k: round(v, 6) for k, v in impacts.items() if v > 0}
+
+    def _calc_footwear_contributions(self, input_data: Dict, weight_kg: float,
+                                     fiber_factors: Dict, elec_factor: float, transport_factors: Dict) -> Dict[str, float]:
+        """Calculate dynamic contributions for footwear schema"""
+        impacts = {}
+
+        # 1. Upper materials
+        upper_impact = 0.0
+        for mat in input_data.get('upper_materials', []):
+            mat_type = mat.get('type', '').lower().replace(' ', '_')
+            percentage = mat.get('percentage', 0) / 100
+            factor = fiber_factors.get(mat_type, 5.0)
+            upper_impact += weight_kg * percentage * factor
+        impacts['upper_materials'] = upper_impact
+
+        # 2. Sole materials
+        sole_impact = 0.0
+        for mat in input_data.get('sole_materials', []):
+            mat_type = mat.get('type', '').lower().replace(' ', '_')
+            percentage = mat.get('percentage', 0) / 100
+            factor = fiber_factors.get('rubber', 3.0)  # Default to rubber
+            sole_impact += weight_kg * percentage * factor
+        impacts['sole_materials'] = sole_impact
+
+        # 3. Manufacturing
+        mfg = input_data.get('manufacturing', {})
+        mfg_impact = weight_kg * 1.0  # Simplified: 1.0 kg CO2/kg for assembly
+        impacts['manufacturing'] = mfg_impact
+
+        # 4. Transport
+        transport = input_data.get('transport', {})
+        distance = transport.get('distance', 0)
+        mode = transport.get('primary_mode', 'Truck').lower()
+        factor = transport_factors.get(mode.replace(' ', '_'), 0.10)
+        transport_impact = distance * weight_kg * factor
+        impacts['transport'] = transport_impact
+
+        # 5. Use phase (optional)
+        use = input_data.get('use_phase', {})
+        if use.get('include', False):
+            lifetime_years = use.get('expected_lifetime_years', 2)
+            use_impact = lifetime_years * 0.5  # Simplified: 0.5 kg CO2 per year
+            impacts['use_phase'] = use_impact
+
+        # 6. End of life (optional)
+        eol = input_data.get('end_of_life', {})
+        if eol.get('include', False):
+            eol_impact = 0.0
+            eol_impact += (eol.get('recycled', 0) / 100) * weight_kg * -0.5
+            eol_impact += (eol.get('incinerated', 0) / 100) * weight_kg * 2.0
+            eol_impact += (eol.get('landfill', 0) / 100) * weight_kg * 0.1
+            impacts['end_of_life'] = max(0, eol_impact)
+
+        return {k: round(v, 6) for k, v in impacts.items() if v > 0}
+
+    def _calc_construction_contributions(self, input_data: Dict, elec_factor: float, transport_factors: Dict) -> Dict[str, float]:
+        """Calculate dynamic contributions for construction schema"""
+        impacts = {}
+
+        # 1. Main material (OFTEN THE HOTSPOT!)
+        main = input_data.get('main_material', {})
+        mat_type = main.get('type', '').lower()
+        recycled_content = main.get('recycled_content', 0) / 100
+        # Simplified material factors
+        material_factors = {
+            'portland_cement': 0.9, 'steel': 2.0, 'aluminum': 8.0, 'timber': 0.5,
+            'concrete': 0.1, 'glass': 1.0, 'brick': 0.3
+        }
+        factor = material_factors.get(mat_type.replace(' ', '_'), 1.0)
+        # Recycled content reduces impact
+        factor = factor * (1 - recycled_content * 0.7)  # 70% reduction for recycled
+        weight_kg = input_data.get('product', {}).get('weight_kg', 100)
+        impacts['main_material'] = weight_kg * factor
+
+        # 2. Additives
+        additives_impact = 0.0
+        for additive in input_data.get('additives', []):
+            percentage = additive.get('percentage', 0) / 100
+            additives_impact += weight_kg * percentage * 0.5  # Simplified
+        impacts['additives'] = additives_impact
+
+        # 3. Manufacturing
+        mfg = input_data.get('manufacturing', {})
+        renewable_share = mfg.get('renewable_share', 0) / 100
+        energy_factor = elec_factor * (1 - renewable_share * 0.9)  # Renewable reduces impact
+        mfg_impact = weight_kg * 0.2 * energy_factor  # Simplified
+        impacts['manufacturing'] = mfg_impact
+
+        # 4. Transport
+        transport = input_data.get('transport', {})
+        distance = transport.get('distance', 0)
+        mode = transport.get('mode', 'Truck').lower()
+        factor = transport_factors.get(mode.replace(' ', '_'), 0.10)
+        transport_impact = distance * weight_kg * factor
+        impacts['transport'] = transport_impact
+
+        # 5. Use phase (usually negligible for passive materials)
+        use = input_data.get('use_phase', {})
+        if use.get('include', False):
+            service_life = use.get('service_life', 50)
+            use_impact = service_life * 0.01  # Minimal
+            impacts['use_phase'] = use_impact
+
+        # 6. End of life
+        eol = input_data.get('end_of_life', {})
+        if eol.get('include', False):
+            eol_impact = 0.0
+            eol_impact += (eol.get('recyclable', 0) / 100) * weight_kg * -0.3
+            eol_impact += (eol.get('landfill', 0) / 100) * weight_kg * 0.05
+            impacts['end_of_life'] = max(0, eol_impact)
+
+        return {k: round(v, 6) for k, v in impacts.items() if v > 0}
+
+    def _calc_battery_contributions(self, input_data: Dict, elec_factor: float, transport_factors: Dict) -> Dict[str, float]:
+        """Calculate dynamic contributions for battery schema"""
+        impacts = {}
+
+        weight_kg = input_data.get('product', {}).get('weight_kg', 10)
+
+        # 1. Cathode (high-impact materials like lithium, cobalt, nickel)
+        cathode = input_data.get('cathode', {})
+        chemistry = cathode.get('chemistry', 'NMC').lower()
+        cathode_factors = {'nmc': 15.0, 'lfp': 8.0, 'nca': 16.0, 'lmo': 10.0}
+        cathode_impact = weight_kg * 0.3 * cathode_factors.get(chemistry.split()[0], 15.0)  # 30% of battery is cathode
+        impacts['cathode'] = cathode_impact
+
+        # 2. Anode (usually graphite)
+        anode = input_data.get('anode', {})
+        anode_impact = weight_kg * 0.2 * 5.0  # 20% of battery, 5.0 kg CO2/kg for graphite
+        impacts['anode'] = anode_impact
+
+        # 3. Electrolyte
+        electrolyte_impact = weight_kg * 0.15 * 3.0  # 15% of battery
+        impacts['electrolyte'] = electrolyte_impact
+
+        # 4. Separator
+        separator_impact = weight_kg * 0.05 * 10.0  # 5% of battery, polymer
+        impacts['separator'] = separator_impact
+
+        # 5. Housing
+        housing = input_data.get('housing', {})
+        housing_impact = weight_kg * 0.2 * 8.0  # 20% of battery, aluminum/steel
+        impacts['housing'] = housing_impact
+
+        # 6. Manufacturing (energy-intensive!)
+        mfg = input_data.get('manufacturing', {})
+        renewable = mfg.get('renewable_energy', 0) / 100
+        mfg_factor = elec_factor * (1 - renewable * 0.9)
+        mfg_impact = weight_kg * 50 * mfg_factor  # 50 kWh/kg battery manufacturing
+        impacts['manufacturing'] = mfg_impact
+
+        # 7. Transport
+        transport = input_data.get('transport', {})
+        distance = transport.get('distance', 0)
+        mode = transport.get('mode', 'Truck').lower()
+        factor = transport_factors.get(mode.replace(' ', '_'), 0.10)
+        transport_impact = distance * weight_kg * factor
+        impacts['transport'] = transport_impact
+
+        # 8. Use phase (charging losses)
+        use = input_data.get('use_phase', {})
+        if use.get('include', False):
+            capacity_kwh = input_data.get('product', {}).get('capacity_kwh', 50)
+            cycle_life = use.get('cycle_life', 1000)
+            efficiency = use.get('efficiency', 90) / 100
+            use_impact = capacity_kwh * cycle_life * (1 - efficiency) * elec_factor
+            impacts['use_phase'] = use_impact
+
+        # 9. End of life (recycling credit)
+        eol = input_data.get('end_of_life', {})
+        if eol.get('include', False):
+            recovery_rate = eol.get('material_recovery', 0) / 100
+            eol_impact = -1 * weight_kg * recovery_rate * 5.0  # Credit for recovery
+            impacts['end_of_life'] = max(0, eol_impact)  # Don't allow negative
+
+        return {k: round(v, 6) for k, v in impacts.items() if v > 0}
 
 
 # Initialize Brightway2 engine
